@@ -103,8 +103,7 @@ contract CompoundLendingVault is LendingBaseVault {
         return cToken.viewUnderlyingBalanceOf(address(this));
     }
 
-    // TODO add this functions to the interface
-    function beforeWithdraw(uint256 assets, uint256 /*shares*/ ) internal virtual {
+    function beforeWithdraw(uint256 assets, uint256 /*shares*/ ) internal virtual override {
         /// -----------------------------------------------------------------------
         /// Withdraw assets from Compound
         /// -----------------------------------------------------------------------
@@ -115,7 +114,7 @@ contract CompoundLendingVault is LendingBaseVault {
         }
     }
 
-    function afterDeposit(uint256 assets, uint256 /*shares*/ ) internal virtual {
+    function afterDeposit(uint256 assets, uint256 /*shares*/ ) internal virtual override {
         /// -----------------------------------------------------------------------
         /// Deposit assets into Compound
         /// -----------------------------------------------------------------------
