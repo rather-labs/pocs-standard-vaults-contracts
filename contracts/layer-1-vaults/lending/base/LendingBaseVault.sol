@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.17;
 
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import "../../Errors.sol";
+import "../../../Errors.sol";
 
 /// @title LendingBaseVault
 /// @author ffarall, LucaCevasco
 /// @notice Abstract base contract for vaults using decentarlised lending protocols
 /// @dev Adds borrowing interface to ERC4626 lending protocols vaults
-abstract contract LendingBaseVault is IERC4626 {
+abstract contract LendingBaseVault is ERC4626 {
 
     /// -----------------------------------------------------------------------
     /// Events
@@ -42,15 +44,13 @@ abstract contract LendingBaseVault is IERC4626 {
 
     /// @notice Opens a borrowing position for the sender, using the underlying
     /// lending protocol.
-    /// @param asset The asset to borrow
     /// @param amount The amount to borrow
-    function borrow(IERC20 asset, uint256 amount) external view virtual;
+    function borrow(uint256 amount) external virtual;
 
     /// @notice Closes a borrowing position for the sender, using the underlying
     /// lending protocol.
-    /// @param asset The asset to repay
     /// @param amount The amount to repay
-    function repay(IERC20 asset, uint256 amount) external view virtual;
+    function repay(uint256 amount) external virtual;
 
     /// -----------------------------------------------------------------------
     /// Internal functions
