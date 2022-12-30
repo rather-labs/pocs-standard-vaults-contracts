@@ -13,6 +13,7 @@ import {LibCompound} from "./lib/LibCompound.sol";
 import {IComptroller} from "./external/IComptroller.sol";
 
 import {LendingBaseVault} from "../base/LendingBaseVault.sol";
+import {CompoundERC4626__CompoundError} from '../../../Errors.sol';
 
 /// @title CompoundLendingVault
 /// @author ffarall, LucaCevasco
@@ -31,13 +32,9 @@ contract CompoundLendingVault is LendingBaseVault {
 
     event ClaimRewards(uint256 amount);
 
-    /// -----------------------------------------------------------------------
-    /// Errors
-    /// -----------------------------------------------------------------------
+    event Borrow(uint256 amount);
 
-    /// @notice Thrown when a call to Compound returned an error.
-    /// @param errorCode The error code returned by Compound
-    error CompoundERC4626__CompoundError(uint256 errorCode);
+    event Repay(uint256 amount);
 
     /// -----------------------------------------------------------------------
     /// Constants
@@ -80,7 +77,7 @@ contract CompoundLendingVault is LendingBaseVault {
     }
 
     /// -----------------------------------------------------------------------
-    /// Compound liquidity mining
+    /// Compound liquidity mining - lending
     /// -----------------------------------------------------------------------
 
     /// @notice Claims liquidity mining rewards from Compound and sends it to rewardRecipient
@@ -93,6 +90,28 @@ contract CompoundLendingVault is LendingBaseVault {
         uint256 amount = comp.balanceOf(address(this));
         comp.safeTransfer(rewardRecipient, amount);
         emit ClaimRewards(amount);
+    }
+
+    /// @notice Borrow the given amount of asset from Compound
+    function borrow(uint256 amount) public override {
+      // Check account can borrow
+      (uint256 ret, uint256 liquidity, uint256 shortfall) = comptroller.getAccountLiquidity(address(this));
+      require(ret == 0, "COMPOUND_BORROWER: getAccountLiquidity failed.");
+      require(shortfall == 0, "COMPOUND_BORROWER: Account underwater");
+      require(liquidity > 0, "COMPOUND_BORROWER: Account doesn't have liquidity");
+
+      ret = ICERC20(address(cToken)).borrow(amount);
+      require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
+    }
+
+    /// @notice Repay the given amount of asset to Compound
+    function repay(uint256 amount) public override  {
+      // Approve tokens to Compound contract
+      IERC20(address(cToken)).approve(address(cToken), amount);
+
+      // Repay given amount to borrowed contract
+      uint256 ret = ICERC20(address(cToken)).repayBorrow(amount);
+      require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
     }
 
     /// -----------------------------------------------------------------------
@@ -154,27 +173,6 @@ contract CompoundLendingVault is LendingBaseVault {
         uint256 cashInShares = convertToShares(cash);
         uint256 shareBalance = balanceOf(owner);
         return cashInShares < shareBalance ? cashInShares : shareBalance;
-    }
-
-    function borrow(uint256 amount) public override {
-      // Check account can borrow
-      (uint256 ret, uint256 liquidity, uint256 shortfall) = comptroller.getAccountLiquidity(address(this));
-      require(ret == 0, "COMPOUND_BORROWER: getAccountLiquidity failed.");
-      require(shortfall == 0, "COMPOUND_BORROWER: Account underwater");
-      require(liquidity > 0, "COMPOUND_BORROWER: Account doesn't have liquidity");
-
-      ret = ICERC20(address(cToken)).borrow(amount);
-      require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
-    }
-
-
-    function repay(uint256 amount) public override  {
-      // Approve tokens to Compound contract
-      IERC20(address(cToken)).approve(address(cToken), amount);
-
-      // Repay given amount to borrowed contract
-      uint256 ret = ICERC20(address(cToken)).repayBorrow(amount);
-      require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
     }
 
     /// -----------------------------------------------------------------------
