@@ -10,7 +10,7 @@ import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 /// @notice Abstract base contract for deploying ERC4626 wrappers
 /// @dev Uses CREATE2 deterministic deployment, so there can only be a single
 /// vault for each asset.
-abstract contract ERC4626Factory {
+contract ERC4626Factory {
 
     /// -----------------------------------------------------------------------
     /// Events
@@ -37,13 +37,17 @@ abstract contract ERC4626Factory {
     /// vault for each asset. Will revert if a vault has already been deployed for the asset.
     /// @param asset The base asset used by the vault
     /// @return vault The vault that was created
-    function createERC4626(IERC20 asset) external virtual returns (IERC4626 vault);
+    function createERC4626(IERC20 asset) external virtual returns (IERC4626 vault) {
+        // TODO check address is not yet used and deploy
+    }
 
     /// @notice Computes the address of the ERC4626 vault corresponding to an asset. Returns
     /// a valid result regardless of whether the vault has already been deployed.
     /// @param asset The base asset used by the vault
     /// @return vault The vault corresponding to the asset
-    function computeERC4626Address(IERC20 asset) external view virtual returns (IERC4626 vault);
+    function computeERC4626Address(IERC20 asset) external view virtual returns (IERC4626 vault) {
+        // TODO hash asset and pass it as bytecodeHash
+    }
 
     /// -----------------------------------------------------------------------
     /// Internal functions
