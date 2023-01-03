@@ -46,9 +46,6 @@ contract CompoundLendingVault is LendingBaseVault {
     /// Immutable params
     /// -----------------------------------------------------------------------
 
-    /// @notice The COMP token contract
-    ERC20 public immutable comp;
-
     /// @notice The Compound cToken contract
     ICERC20 public immutable cToken;
 
@@ -65,11 +62,10 @@ contract CompoundLendingVault is LendingBaseVault {
     /// Constructor
     /// -----------------------------------------------------------------------
 
-    constructor(ERC20 asset_, ERC20 comp_, ICERC20 cToken_, address rewardRecipient_, IComptroller comptroller_)
+    constructor(ERC20 asset_, ICERC20 cToken_, address rewardRecipient_, IComptroller comptroller_)
         ERC4626(asset_)
         ERC20(_vaultName(asset_), _vaultSymbol(asset_))
     {
-        comp = comp_;
         cToken = cToken_;
         comptroller = comptroller_;
         rewardRecipient = rewardRecipient_;
@@ -79,18 +75,6 @@ contract CompoundLendingVault is LendingBaseVault {
     /// -----------------------------------------------------------------------
     /// Compound liquidity mining - lending
     /// -----------------------------------------------------------------------
-
-    /// @notice Claims liquidity mining rewards from Compound and sends it to rewardRecipient
-    function claimRewards() external {
-        address[] memory holders = new address[](1);
-        holders[0] = address(this);
-        ICERC20[] memory cTokens = new ICERC20[](1);
-        cTokens[0] = cToken;
-        comptroller.claimComp(holders, cTokens, false, true);
-        uint256 amount = comp.balanceOf(address(this));
-        comp.safeTransfer(rewardRecipient, amount);
-        emit ClaimRewards(amount);
-    }
 
     /// @notice Borrow the given amount of asset from Compound
     function borrow(uint256 amount) public override {
