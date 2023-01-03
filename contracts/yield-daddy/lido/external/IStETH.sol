@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: AGPL-3.0
+pragma solidity ^0.8.17;
+
+import {ERC20} from "solmate/src/tokens/ERC20.sol";
+
+abstract contract IStETH is ERC20 {
+    function getTotalShares() external view virtual returns (uint256);
+}
