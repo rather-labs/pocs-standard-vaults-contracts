@@ -6,8 +6,8 @@ import fs from 'fs';
 import { deployContract } from './helpers/utils';
 import { CompoundLendingVaultFactory__factory } from '../typechain-types/factories/contracts/layer-1-vaults/lending/compound/CompoundLendingVaultFactory__factory';
 
-const COMPTROLLER_ADDRESS = '0x6F809eABA306dAaf5892a33C77d323b33b7a7Fd5';
-const CETH_ADDRESS = '0x6F809eABA306dAaf5892a33C77d323b33b7a7Fd5';
+const COMPTROLLER_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
+const CETH_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
 
 async function main() {
   const provider = ethers.provider;
