@@ -305,17 +305,22 @@ contract SushiStakingVault is ERC4626, Ownable {
         uint256 lptAmount
     ) internal returns (uint256, uint256) {
         // Getting reserves of tokenA in Uniswap Pair
-        uint256 reserve0; uint256 reserve1; uint256 reserveA; uint256 reserveB;
-        (reserve0, reserve1, ) = pair.getReserves();
-        address token0 = pair.token0();
-        address token1 = pair.token1();
+        uint256 reserveA; uint256 reserveB;
 
-        if (address(tokenA) == token0) {
-            reserveA = reserve0;
-            reserveB = reserve1;
-        } else if (address(tokenA) == token1) {
-            reserveA = reserve1;
-            reserveB = reserve0;
+        { // This makes reserve0, reserve1, token0 and token1 local variables of
+          // this scope, and prevents form stack too deep compilation error.
+            uint256 reserve0; uint256 reserve1;
+            (reserve0, reserve1, ) = pair.getReserves();
+            address token0 = pair.token0();
+            address token1 = pair.token1();
+
+            if (address(tokenA) == token0) {
+                reserveA = reserve0;
+                reserveB = reserve1;
+            } else if (address(tokenA) == token1) {
+                reserveA = reserve1;
+                reserveB = reserve0;
+            }
         }
 
         // Getting total supply of LPTs in Uniswap Pair
