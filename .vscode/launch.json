@@ -27,5 +27,17 @@
       "args": ["run", "quick-test"],
       "cwd": "${workspaceFolder}"
     },
+
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Deploy",
+      "skipFiles": [
+          "<node_internals>/**"
+      ],
+      "runtimeExecutable": "npm",
+      "args": ["run", "local:hardhat"],
+      "cwd": "${workspaceFolder}"
+    },
   ]
 }
