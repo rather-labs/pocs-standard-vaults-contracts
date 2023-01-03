@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 
 /// @title ERC4626Factory
@@ -22,7 +20,7 @@ contract ERC4626Factory {
     /// @notice Emitted when a new ERC4626 vault has been created
     /// @param asset The base asset used by the vault
     /// @param vault The vault that was created
-    event CreateERC4626(IERC20 indexed asset, IERC4626 vault);
+    event CreateERC4626(ERC20 indexed asset, ERC4626 vault);
 
     /// -----------------------------------------------------------------------
     /// Storage variables
@@ -40,7 +38,7 @@ contract ERC4626Factory {
     /// vault for each asset. Will revert if a vault has already been deployed for the asset.
     /// @param asset The base asset used by the vault
     /// @return vault The vault that was created
-    function createERC4626(ERC20 asset) external virtual returns (IERC4626 vault) {
+    function createERC4626(ERC20 asset) external virtual returns (ERC4626 vault) {
         // TODO check address is not yet used and deploy
     }
 
@@ -48,7 +46,7 @@ contract ERC4626Factory {
     /// a valid result regardless of whether the vault has already been deployed.
     /// @param asset The base asset used by the vault
     /// @return vault The vault corresponding to the asset
-    function computeERC4626Address(ERC20 asset) external view virtual returns (IERC4626 vault) {
+    function computeERC4626Address(ERC20 asset) external view virtual returns (ERC4626 vault) {
         // TODO hash asset and pass it as bytecodeHash
     }
 
