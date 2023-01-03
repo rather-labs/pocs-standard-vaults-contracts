@@ -56,7 +56,13 @@ contract SushiStakingVaultFactory is Ownable, ERC4626Factory {
         if (tokenB == address(0)) revert InvalidAddress();
         if (poolId == 0) revert SushiStakingVaultFactory__InvalidPoolID();
 
-        vault = new SushiStakingVault{salt: bytes32(0)}(
+        bytes32 salt = keccak256(
+            abi.encodePacked(
+                implementation,
+                asset
+            )
+        );
+        vault = new SushiStakingVault{salt: salt}(
             asset,
             asset,
             ERC20(tokenB),
