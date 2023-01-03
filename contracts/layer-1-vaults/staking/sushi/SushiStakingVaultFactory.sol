@@ -66,6 +66,6 @@ contract SushiStakingVaultFactory is Ownable, ERC4626Factory {
             poolId
         );
 
-        // emit CreateERC4626(asset, vault);
+        emit CreateERC4626(asset, vault);
     }
 }
