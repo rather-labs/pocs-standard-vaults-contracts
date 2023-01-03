@@ -50,7 +50,7 @@ contract CompoundLendingVaultFactory is ERC4626Factory {
         rewardRecipient = rewardRecipient_;
 
         // initialize underlyingToCToken
-        ICERC20[] memory allCTokens = comptroller_.getAllMarkets();
+        ICERC20[] memory allCTokens = comptroller_.getAlliTokens();
         uint256 numCTokens = allCTokens.length;
         ICERC20 cToken;
         for (uint256 i; i < numCTokens;) {
@@ -75,26 +75,17 @@ contract CompoundLendingVaultFactory is ERC4626Factory {
         if (address(cToken) == address(0)) {
             revert CompoundERC4626Factory__CTokenNonexistent();
         }
-
-        vault = new CompoundLendingVault{salt: bytes32(0)}(asset, cToken, rewardRecipient, comptroller);
-
-        emit CreateERC4626(asset, vault);
-    }
-
-    /// @inheritdoc ERC4626Factory
-    function computeERC4626Address(ERC20 asset) external view virtual override returns (ERC4626 vault) {
-        vault = ERC4626(
-            _computeCreate2Address(
-                keccak256(
-                    abi.encodePacked(
-                        // Deployment bytecode:
-                        type(CompoundLendingVault).creationCode,
-                        // Constructor arguments:
-                        abi.encode(asset, underlyingToCToken[asset], rewardRecipient, comptroller)
-                    )
-                )
+        
+        bytes32 salt = keccak256(
+            abi.encodePacked(
+                implementation,
+                asset
             )
         );
+
+        vault = new CompoundLendingVault{salt: salt}(asset, cToken, rewardRecipient, comptroller);
+
+        emit CreateERC4626(asset, vault);
     }
 
     /// @notice Updates the underlyingToCToken mapping in order to support newly added cTokens

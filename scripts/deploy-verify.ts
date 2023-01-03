@@ -3,8 +3,8 @@ import { CompoundLendingVaultFactory__factory } from '../typechain-types/factori
 
 import { deployWithVerify } from './helpers/utils';
 
-const COMPTROLLER_ADDRESS = '0x6F809eABA306dAaf5892a33C77d323b33b7a7Fd5';
-const CETH_ADDRESS = '0x6F809eABA306dAaf5892a33C77d323b33b7a7Fd5';
+const COMPTROLLER_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
+const CETH_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
 
 async function main() {
   const provider = ethers.provider;
@@ -12,7 +12,6 @@ async function main() {
     process.env.DEPLOYER_PRIVATE_KEY as string,
     provider
   );
-
   const contractFilePath = 'contracts/layer-1-vaults/lending/compound/CompoundLendingVaultFactory.sol:CompoundLendingVaultFactory';
 
   console.log('\n\t-- Deploying CompoundLendingVaultFactory and verifying --');

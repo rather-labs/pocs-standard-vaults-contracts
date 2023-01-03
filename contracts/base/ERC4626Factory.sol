@@ -38,14 +38,14 @@ abstract contract ERC4626Factory {
     /// vault for each asset. Will revert if a vault has already been deployed for the asset.
     /// @param asset The base asset used by the vault
     /// @return vault The vault that was created
-    function createERC4626(IERC20 asset) external virtual returns (IERC4626 vault);
+    function createERC4626(ERC20 asset) external virtual returns (ERC4626 vault);
 
     /// @notice Computes the address of the ERC4626 vault corresponding to an asset. Returns
     /// a valid result regardless of whether the vault has already been deployed.
     /// @param asset The base asset used by the vault
     /// @return vault The vault corresponding to the asset
-    function computeERC4626Address(IERC20 asset) external view virtual returns (IERC4626 vault) {
-        vault = IERC4626(
+    function computeERC4626Address(ERC20 asset) external view virtual returns (ERC4626 vault) {
+        vault = ERC4626(
             _computeCreate2Address(
                 keccak256(
                     abi.encodePacked(
