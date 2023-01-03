@@ -25,7 +25,7 @@ async function main() {
 
   console.log('\n\t-- Deploying NFT Contract --');
   const compoundFactory = await deployContract(
-    new CompoundLendingVaultFactory__factory(deployer).deploy(COMPTROLLER_ADDRESS, CETH_ADDRESS, deployer.address) // We initialy set the allowed minter to the deployer
+    new CompoundLendingVaultFactory__factory(deployer).deploy(COMPTROLLER_ADDRESS, CETH_ADDRESS, deployer.address)
   );
   const compoundFactoryData = {
     address: compoundFactory.address,

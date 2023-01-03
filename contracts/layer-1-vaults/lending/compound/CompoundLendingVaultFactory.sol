@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 
-import {ICERC20} from "./external/ICERC20.sol";
+import {ICERC20} from "../../../interfaces/ICERC20.sol";
 import {CompoundLendingVault} from "./CompoundLendingVault.sol";
-import {IComptroller} from "./external/IComptroller.sol";
+import {IComptroller} from "../../../interfaces/IComptroller.sol";
 import {ERC4626Factory} from "../../../base/ERC4626Factory.sol";
 
 /// @title CompoundLendingVaultFactory
