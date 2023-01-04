@@ -3,8 +3,11 @@ const FormatTypes = ethers.utils.FormatTypes;
 
 import fs from 'fs';
 
-import { Meatstick__factory, MeatMinter__factory } from '../typechain-types';
-import { deployContract, waitForTx } from './helpers/utils';
+import { deployContract } from './helpers/utils';
+import { CompoundLendingVaultFactory__factory } from '../typechain-types/factories/contracts/layer-1-vaults/lending/compound/CompoundLendingVaultFactory__factory';
+
+const COMPTROLLER_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
+const CETH_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
 
 async function main() {
   const provider = ethers.provider;
@@ -20,31 +23,16 @@ async function main() {
     );
   }
 
-  console.log('\n\t-- Deploying NFT Contract --');
-  const meatstickContract = await deployContract(
-    new Meatstick__factory(deployer).deploy(deployer.address) // We initialy set the allowed minter to the deployer
+  console.log('\n\t-- Deploying CompoundLendingVaultFactory Contract --');
+  const compoundFactory = await deployContract(
+    new CompoundLendingVaultFactory__factory(deployer).deploy(COMPTROLLER_ADDRESS, CETH_ADDRESS)
   );
-  const meatstickData = {
-    address: meatstickContract.address,
-    abi: JSON.parse(meatstickContract.interface.format(FormatTypes.json) as string),
+  const compoundFactoryData = {
+    address: compoundFactory.address,
+    abi: JSON.parse(compoundFactory.interface.format(FormatTypes.json) as string),
   };
-  fs.writeFileSync(__dirname + '/../json_contracts/meatstick.json', JSON.stringify(meatstickData));
-  console.log(meatstickContract.address);
-
-  console.log('\n\t-- Deploying Allowed Minter Contract --');
-  const meatminterContract = await deployContract(
-    new MeatMinter__factory(deployer).deploy(meatstickContract.address)
-  );
-  const meatminterData = {
-    address: meatminterContract.address,
-    abi: JSON.parse(meatminterContract.interface.format(FormatTypes.json) as string),
-  };
-  fs.writeFileSync(__dirname + '/../json_contracts/meatminter.json', JSON.stringify(meatminterData));
-  console.log(meatminterContract.address);
-
-  console.log('\n\t-- Changing Meatstick allowed minter to MeatMinter contract --');
-  const transactionResponse = meatstickContract.changeMinter(meatminterContract.address); // Then we update the minter
-  await waitForTx(transactionResponse);
+  fs.writeFileSync(__dirname + '/../json_contracts/compoundLendingVaultFactory.json', JSON.stringify(compoundFactoryData));
+  console.log(compoundFactoryData.address);
 }
 
 main().catch((error) => {
