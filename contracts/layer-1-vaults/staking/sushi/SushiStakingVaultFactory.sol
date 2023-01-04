@@ -37,7 +37,8 @@ contract SushiStakingVaultFactory is Ownable, ERC4626Factory {
     /// Constructor
     /// -----------------------------------------------------------------------
 
-    constructor(IUniswapV2Router02 router_, IMasterChefV2 farm_) {
+    constructor(address implementation_, IUniswapV2Router02 router_, IMasterChefV2 farm_) {
+        implementation = implementation_;
         router = router_;
         farm = farm_;
 

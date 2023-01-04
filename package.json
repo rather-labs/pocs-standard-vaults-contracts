@@ -13,7 +13,6 @@
     "compile": "SKIP_LOAD=true hardhat clean && SKIP_LOAD=true hardhat compile",
     "prettier": "prettier --write contracts/**/*.sol",
     "lint": "eslint .",
-    "local:deploy": "npx hardhat run scripts/deploy.ts --network localhost",
     "hardhat:deploy": "npx hardhat run scripts/deploy.ts --network hardhat",
     "testnet:deploy": "npx hardhat run scripts/deploy.ts --network testnet",
     "testnet:deploy-verify": "npx hardhat run scripts/deploy-verify.ts --network testnet"
