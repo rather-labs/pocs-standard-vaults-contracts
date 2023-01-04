@@ -18,7 +18,7 @@ import {IRewarder} from "../../../interfaces/IRewarder.sol";
 /// @dev Adds liquidity to a SushiSwap pool and stakes the LP tokens on the MasterChef
 /// contract to earn rewards. Uses LPTs as shares accounting instead of using regular
 /// vault accounting.
-contract SushiStakingVault is ERC4626, Ownable {
+contract SushiStakingVault is Ownable, ERC4626 {
     using SafeERC20 for ERC20;
     using Math for uint256;
 
@@ -26,7 +26,7 @@ contract SushiStakingVault is ERC4626, Ownable {
     /// Immutable params
     /// -----------------------------------------------------------------------
 
-    /// @notice One of the tokens of the pool
+    /// @notice One of the tokens of the pool, is the same as the asset of the vault
     ERC20 public immutable tokenA;
     /// @notice The other token of the pool
     ERC20 public immutable tokenB;
@@ -52,6 +52,7 @@ contract SushiStakingVault is ERC4626, Ownable {
         ERC20 tokenA_, 
         ERC20 tokenB_, 
         IUniswapV2Router02 router_,
+        IUniswapV2Factory factory_,
         IMasterChefV2 farm_,
         uint256 poolId_
     )
@@ -62,9 +63,9 @@ contract SushiStakingVault is ERC4626, Ownable {
         router = router_;
         farm = farm_;
         poolId = poolId_;
+        factory = factory_;
 
-        // Getting factory and pair
-        factory = IUniswapV2Factory(router.factory());
+        // Getting and pair
         pair = IUniswapV2Pair(factory.getPair(address(tokenA), address(tokenB)));
 
         // Setting path to swap, using simplest option as default

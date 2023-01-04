@@ -3,7 +3,6 @@ pragma solidity ^0.8.17;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
-
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 
 /// @title ERC4626Factory
@@ -37,8 +36,9 @@ abstract contract ERC4626Factory {
     /// @dev Uses CREATE2 deterministic deployment, so there can only be a single
     /// vault for each asset. Will revert if a vault has already been deployed for the asset.
     /// @param asset The base asset used by the vault
+    /// @param data Extra data specific to implementation of this factory
     /// @return vault The vault that was created
-    function createERC4626(ERC20 asset) external virtual returns (ERC4626 vault);
+    function createERC4626(ERC20 asset, bytes memory data) external virtual returns (ERC4626 vault);
 
     /// @notice Computes the address of the ERC4626 vault corresponding to an asset. Returns
     /// a valid result regardless of whether the vault has already been deployed.
