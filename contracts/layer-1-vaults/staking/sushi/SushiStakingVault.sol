@@ -220,6 +220,7 @@ contract SushiStakingVault is Ownable, ERC4626, ISushiStakingVault {
         IMasterChefV2 farm_,
         uint256 poolId_
     ) external {
+        // TODO make it onlyOwner and manage owner in creation
         tokenA = tokenA_;
         tokenB = tokenB_;
         router = router_;
