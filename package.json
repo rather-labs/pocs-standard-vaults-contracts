@@ -28,8 +28,8 @@
   },
   "homepage": "https://github.com/rather-labs/pocs-standard-vaults-contracts#readme",
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^1.0.2",
-    "@openzeppelin/contracts": "^4.3.3",
+    "@nomicfoundation/hardhat-toolbox": "^2.0.0",
+    "@openzeppelin/contracts": "^4.8.0",
     "bignumber.js": "^9.0.1",
     "dotenv": "^16.0.3",
     "eslint": "^8.20.0",

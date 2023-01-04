@@ -11,7 +11,6 @@ import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 /// @dev Uses CREATE2 deterministic deployment, so there can only be a single
 /// vault for each asset.
 abstract contract ERC4626Factory {
-
     /// -----------------------------------------------------------------------
     /// Events
     /// -----------------------------------------------------------------------
@@ -38,7 +37,19 @@ abstract contract ERC4626Factory {
     /// @param asset The base asset used by the vault
     /// @param data Extra data specific to implementation of this factory
     /// @return vault The vault that was created
-    function createERC4626(ERC20 asset, bytes memory data) external virtual returns (ERC4626 vault);
+    function createERC4626(ERC20 asset, bytes calldata data) external virtual returns (ERC4626 vault) {
+        bytes32 salt = keccak256(
+            abi.encodePacked(
+                implementation,
+                asset
+            )
+        );
+        vault = ERC4626(Clones.cloneDeterministic(implementation, salt));
+
+        _initialise(vault, asset, data);
+
+        emit CreateERC4626(asset, vault);
+    }
 
     /// @notice Computes the address of the ERC4626 vault corresponding to an asset. Returns
     /// a valid result regardless of whether the vault has already been deployed.
@@ -60,6 +71,10 @@ abstract contract ERC4626Factory {
     /// -----------------------------------------------------------------------
     /// Internal functions
     /// -----------------------------------------------------------------------
+
+    /// @notice Initialises an ERC4626 vault with the given data
+    /// @param data Extra data specific to implementation of this factory
+    function _initialise(ERC4626 vault, ERC20 asset, bytes memory data) internal virtual;
 
     /// @notice Determines whether a vault is already deployed or not.
     /// @param bytecodeHash The keccak256 hash of the creation code of the contract being deployed concatenated

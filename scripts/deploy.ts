@@ -3,8 +3,19 @@ const FormatTypes = ethers.utils.FormatTypes;
 
 import fs from 'fs';
 
-import { Meatstick__factory, MeatMinter__factory } from '../typechain-types';
+import { 
+  SushiStakingVault,
+  SushiStakingVault__factory,
+  SushiStakingVaultFactory,
+  SushiStakingVaultFactory__factory,
+  SushiStakingLogic__factory,
+  SushiStakingLogic,
+} from '../typechain-types';
 import { deployContract, waitForTx } from './helpers/utils';
+import { ZERO_ADDRESS } from '../test/helpers/constants';
+
+const ROUTER_ADDRESS = '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506';
+const MINICHEF_ADDRESS = '0x0769fd68dFb93167989C6f7254cd0D766Fb2841F';
 
 async function main() {
   const provider = ethers.provider;
@@ -20,31 +31,44 @@ async function main() {
     );
   }
 
-  console.log('\n\t-- Deploying NFT Contract --');
-  const meatstickContract = await deployContract(
-    new Meatstick__factory(deployer).deploy(deployer.address) // We initialy set the allowed minter to the deployer
+  console.log('\n\t-- Deploying SushiStakingLogic Library --');
+  const sushiLogic = await deployContract(
+    new SushiStakingLogic__factory(deployer).deploy()
   );
-  const meatstickData = {
-    address: meatstickContract.address,
-    abi: JSON.parse(meatstickContract.interface.format(FormatTypes.json) as string),
+  const libs = {
+    'contracts/layer-1-vaults/staking/sushi/SushiStakingLogic.sol:SushiStakingLogic': sushiLogic.address
   };
-  fs.writeFileSync(__dirname + '/../json_contracts/meatstick.json', JSON.stringify(meatstickData));
-  console.log(meatstickContract.address);
 
-  console.log('\n\t-- Deploying Allowed Minter Contract --');
-  const meatminterContract = await deployContract(
-    new MeatMinter__factory(deployer).deploy(meatstickContract.address)
+  console.log('\n\t-- Deploying SushiStakingVault Contract --');
+  const sushiVaultImplementation = await deployContract(
+    new SushiStakingVault__factory(
+      libs,
+      deployer
+    ).deploy(
+      ZERO_ADDRESS,
+      ZERO_ADDRESS,
+      ZERO_ADDRESS,
+      ZERO_ADDRESS,
+      ZERO_ADDRESS,
+      ZERO_ADDRESS,
+      ZERO_ADDRESS,
+      0,
+    )
   );
-  const meatminterData = {
-    address: meatminterContract.address,
-    abi: JSON.parse(meatminterContract.interface.format(FormatTypes.json) as string),
-  };
-  fs.writeFileSync(__dirname + '/../json_contracts/meatminter.json', JSON.stringify(meatminterData));
-  console.log(meatminterContract.address);
+  console.log(`Deployed at: ${sushiVaultImplementation.address}`);
 
-  console.log('\n\t-- Changing Meatstick allowed minter to MeatMinter contract --');
-  const transactionResponse = meatstickContract.changeMinter(meatminterContract.address); // Then we update the minter
-  await waitForTx(transactionResponse);
+  console.log('\n\t-- Deploying SushiStakingVaultFactory Contract --');
+  const sushiVaultFactory = await deployContract(
+    new SushiStakingVaultFactory__factory(
+      libs,
+      deployer
+    ).deploy(
+      sushiVaultImplementation.address,
+      ROUTER_ADDRESS,
+      MINICHEF_ADDRESS
+    )
+  );
+  console.log(`Deployed at: ${sushiVaultFactory.address}`);
 }
 
 main().catch((error) => {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.17;
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -11,6 +11,8 @@ import {IUniswapV2Factory} from "../../../interfaces/IUniswapV2Factory.sol";
 import {IUniswapV2Pair} from "../../../interfaces/IUniswapV2Pair.sol";
 import {IMasterChefV2} from "../../../interfaces/IMasterChefV2.sol";
 import {IRewarder} from "../../../interfaces/IRewarder.sol";
+import {SushiStakingLogic} from "./SushiStakingLogic.sol";
+import {ISushiStakingVault} from "./ISushiStakingVault.sol";
 
 /// @title SushiStakingVault
 /// @author ffarall, LucaCevasco
@@ -18,7 +20,7 @@ import {IRewarder} from "../../../interfaces/IRewarder.sol";
 /// @dev Adds liquidity to a SushiSwap pool and stakes the LP tokens on the MasterChef
 /// contract to earn rewards. Uses LPTs as shares accounting instead of using regular
 /// vault accounting.
-contract SushiStakingVault is Ownable, ERC4626 {
+contract SushiStakingVault is Ownable, ERC4626, ISushiStakingVault {
     using SafeERC20 for ERC20;
     using Math for uint256;
 
@@ -27,55 +29,38 @@ contract SushiStakingVault is Ownable, ERC4626 {
     /// -----------------------------------------------------------------------
 
     /// @notice One of the tokens of the pool, is the same as the asset of the vault
-    ERC20 public immutable tokenA;
+    ERC20 public tokenA;
     /// @notice The other token of the pool
-    ERC20 public immutable tokenB;
+    ERC20 public tokenB;
     /// @notice The UniswapV2 router2 address
-    IUniswapV2Router02 public immutable router;
+    IUniswapV2Router02 public router;
     /// @notice UniswapV2 Factory
-    IUniswapV2Factory public immutable factory;
+    IUniswapV2Factory public factory;
     /// @notice UniswapV2 pair of tokenA and tokenB
-    IUniswapV2Pair public immutable pair;
+    IUniswapV2Pair public pair;
     /// @notice Path to swap tokens form tokenA to tokenB
     address[] public pathAtoB;
     /// @notice MasterChefV2/MiniChef SushiSwap contract to stake LPTs
-    IMasterChefV2 public immutable farm;
+    IMasterChefV2 public farm;
     /// @notice MasterChef's pool ID to invest in
-    uint256 public immutable poolId;
+    uint256 public poolId;
 
     /// -----------------------------------------------------------------------
     /// Constructor
     /// -----------------------------------------------------------------------
 
-    constructor(
-        ERC20 asset_, 
-        ERC20 tokenA_, 
-        ERC20 tokenB_, 
-        IUniswapV2Router02 router_,
-        IUniswapV2Factory factory_,
-        IMasterChefV2 farm_,
-        uint256 poolId_
-    )
-    ERC4626(asset_)
-    ERC20("SushiStakingVault", "SSV") {
-        tokenA = tokenA_;
-        tokenB = tokenB_;
-        router = router_;
-        farm = farm_;
-        poolId = poolId_;
-        factory = factory_;
-
-        // Getting and pair
-        pair = IUniswapV2Pair(factory.getPair(address(tokenA), address(tokenB)));
-
-        // Setting path to swap, using simplest option as default
-        pathAtoB[0] = address(tokenA);
-        pathAtoB[1] = address(tokenB);
-    }
+    constructor()
+    ERC4626(IERC20(address(0)))
+    ERC20("SushiStakingVault", "SSV") { }
 
     /// -----------------------------------------------------------------------
     /// ERC4626 overrides
     /// -----------------------------------------------------------------------
+
+    /// @inheritdoc ERC4626
+    function asset() public view virtual override returns (address) {
+        return address(tokenA);
+    }
 
     /// @inheritdoc ERC4626
     function deposit(uint256 assets, address receiver) public virtual override returns (uint256) {
@@ -186,7 +171,7 @@ contract SushiStakingVault is Ownable, ERC4626 {
 
         // Swap half the assets to tokenB, to invest in pool
         uint256 amountA = assets / 2;
-        uint256 amountB = _swap(amountA, pathAtoB);
+        uint256 amountB = SushiStakingLogic.swap(amountA, pathAtoB, router);
 
         // Add liquidity with both assets
         uint256 lptAmount;
@@ -226,6 +211,28 @@ contract SushiStakingVault is Ownable, ERC4626 {
         return (amountA, shares);
     }
 
+    function initialise(
+        ERC20 tokenA_, 
+        ERC20 tokenB_, 
+        IUniswapV2Router02 router_,
+        IUniswapV2Factory factory_,
+        IUniswapV2Pair pair_,
+        IMasterChefV2 farm_,
+        uint256 poolId_
+    ) external {
+        tokenA = tokenA_;
+        tokenB = tokenB_;
+        router = router_;
+        factory = factory_;
+        pair = pair_;
+        farm = farm_;
+        poolId = poolId_;
+
+        // Setting path to swap, using simplest option as default
+        pathAtoB.push(address(tokenA));
+        pathAtoB.push(address(tokenB));
+    }
+
     /// -----------------------------------------------------------------------
     /// SushiSwap handling functions
     /// -----------------------------------------------------------------------
@@ -235,34 +242,7 @@ contract SushiStakingVault is Ownable, ERC4626 {
     /// @param includeDust If the calculation should include fractions of the tokens remaining in
     /// this contract.
     function getAccruedRewards(bool includeDust) public view returns (address[] memory, uint256[] memory) {
-        address sushi = farm.SUSHI();
-        IRewarder poolRewarder = farm.rewarder(poolId);
-
-        uint256 pendingSushi = farm.pendingSushi(poolId, address(this));
-
-        address[] memory extraRewards;
-        uint256[] memory extraAmounts;
-        (extraRewards, extraAmounts) = poolRewarder.pendingTokens(poolId, address(this), pendingSushi);
-
-        address[] memory rewards = new address[](extraRewards.length + 1);
-        uint256[] memory amounts = new uint256[](extraAmounts.length + 1);
-
-        rewards[0] = sushi;
-        amounts[0] = pendingSushi;
-
-        for (uint256 i = 0; i < extraRewards.length; i++) {
-            rewards[i + 1] = extraRewards[i];
-            amounts[i + 1] = extraAmounts[i];
-        }
-
-        if (includeDust) {
-            for (uint256 i = 0; i < rewards.length; i++) {
-                ERC20 rewardToken = ERC20(rewards[i]);
-                amounts[i] += (rewardToken.balanceOf(address(this)));
-            }
-        }
-
-        return (rewards, amounts);
+        return SushiStakingLogic.getAccruedRewards(includeDust, farm, poolId);
     }
     
     /// @notice This contract must be previously funded with the required amounts.
@@ -280,22 +260,7 @@ contract SushiStakingVault is Ownable, ERC4626 {
         uint256
         )
     {
-        uint256 deadline = block.timestamp + 300;
-        uint256 restPercentageTolerance = 100 - 2;
-        uint256 minAmountA = (amountA * restPercentageTolerance) / 100;
-        uint256 minAmountB = (amountB * restPercentageTolerance) / 100;
-
-        return
-        IUniswapV2Router02(router).addLiquidity(
-            address(tokenA),
-            address(tokenB),
-            amountA,
-            amountB,
-            minAmountA,
-            minAmountB,
-            address(this),
-            deadline
-        );
+        return SushiStakingLogic.addLiquidity(amountA, amountB, tokenA, tokenB, router);
     }
 
     /// @notice Removes liquidity from a liquidity pool given by `tokenA` and `tokenB` via `router`,
@@ -305,101 +270,20 @@ contract SushiStakingVault is Ownable, ERC4626 {
     function _removeLiquidity(
         uint256 lptAmount
     ) internal returns (uint256, uint256) {
-        // Getting reserves of tokenA in Uniswap Pair
-        uint256 reserveA; uint256 reserveB;
-
-        { // This makes reserve0, reserve1, token0 and token1 local variables of
-          // this scope, and prevents form stack too deep compilation error.
-            uint256 reserve0; uint256 reserve1;
-            (reserve0, reserve1, ) = pair.getReserves();
-            address token0 = pair.token0();
-            address token1 = pair.token1();
-
-            if (address(tokenA) == token0) {
-                reserveA = reserve0;
-                reserveB = reserve1;
-            } else if (address(tokenA) == token1) {
-                reserveA = reserve1;
-                reserveB = reserve0;
-            }
-        }
-
-        // Getting total supply of LPTs in Uniswap Pair
-        uint256 lptSupply = pair.totalSupply();
-
-        // Calculate minAmountA and minAmountB considering 5% slippage
-        uint256 minAmountA = lptAmount.mulDiv(reserveA, lptSupply) * 95 / 100;
-        uint256 minAmountB = lptAmount.mulDiv(reserveB, lptSupply) * 95 / 100;
-
-        uint256 deadline = block.timestamp + 300;
-        return
-        IUniswapV2Router02(router).removeLiquidity(
-            address(tokenA),
-            address(tokenB),
-            lptAmount,
-            minAmountA,
-            minAmountB,
-            address(this),
-            deadline
-        );
+        return SushiStakingLogic.removeLiquidity(lptAmount, tokenA, tokenB, router, pair);
     }
 
     /// @notice Stakes LPTs to MasterChef contract to earn rewards.
     /// @dev Approves usage of LPTs first.
     /// @param lptAmount the amount of liquidity provider tokens to burn.
     function _stake(uint256 lptAmount) internal {
-        // Setting approval of LPTs to MasterChef contract
-        pair.approve(address(farm), lptAmount);
-
-        // Staking
-        farm.deposit(poolId, lptAmount, address(this));
+        SushiStakingLogic.stake(lptAmount, pair, farm, poolId);
     }
 
     /// @notice Claims rewards and unstakes LPTs from MasterChef contract.
     /// @param lptAmount the amount of liquidity provider tokens to burn.
     function _unstake(uint256 lptAmount) internal {
-        _claimRewards();
-        farm.withdraw(poolId, lptAmount, address(this));
-    }
-
-    /// @notice Claims rewards from MasterChef contract.
-    function _claimRewards() internal returns (address[] memory, uint256[] memory) {
-        address[] memory rewards;
-        uint256[] memory amounts;
-        (rewards, amounts) = getAccruedRewards(false);
-
-        // Get rewards
-        farm.harvest(poolId, address(this));
-
-        return (rewards, amounts);
-    }
-
-    /// @notice Swaps the given using the given path.
-    /// @dev Calculates minAmountOut getting a quoted amount from getAmountsOut method
-    /// and considering a 5% slippage.
-    /// @param amountIn Amount of first token in path to swap for last token in path.
-    /// @param path Path of tokens to perform the swap with.
-    /// @return amountOut Amount of last token in path gotten after the swap for first
-    /// token in path.
-    function _swap(
-        uint256 amountIn,
-        address[] memory path
-    ) internal returns (uint256) {
-        // Getting quote for swap, considering 5% slippage
-        uint256[] memory amountsOutQuote = router.getAmountsOut(amountIn, path);
-        uint256 minAmountOut = amountsOutQuote[amountsOutQuote.length - 1] * 95 / 100;
-        
-        // Swapping
-        uint256[] memory amountsOut = router.swapExactTokensForTokens(
-            amountIn,
-            minAmountOut,
-            path,
-            address(this),
-            block.timestamp + 300
-        );
-        uint256 amountOut = amountsOut[amountsOut.length - 1];
-
-        return amountOut;
+        SushiStakingLogic.unstake(lptAmount, farm, poolId);
     }
 
     /// -----------------------------------------------------------------------
