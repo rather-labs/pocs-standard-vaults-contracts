@@ -13,8 +13,6 @@ import {
   SushiStakingVaultFactory__factory,
   SushiStakingLogic__factory,
   SushiStakingLogic,
-  Events,
-  Events__factory,
 } from '../typechain-types';
 
 export const USDC_ADDRESS = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
