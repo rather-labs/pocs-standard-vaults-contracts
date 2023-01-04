@@ -52,9 +52,6 @@ contract CompoundLendingVault is LendingBaseVault {
     // @notice The underlying token asset
     ERC20 public immutable underAsset;
 
-    /// @notice The address that will receive the liquidity mining rewards (if any)
-    address public immutable rewardRecipient;
-
     /// @notice The Compound comptroller contract
     IComptroller public immutable comptroller;
 
@@ -62,13 +59,12 @@ contract CompoundLendingVault is LendingBaseVault {
     /// Constructor
     /// -----------------------------------------------------------------------
 
-    constructor(ERC20 asset_, ICERC20 cToken_, address rewardRecipient_, IComptroller comptroller_)
+    constructor(ERC20 asset_, ICERC20 cToken_, IComptroller comptroller_)
         ERC4626(asset_)
         ERC20(_vaultName(asset_), _vaultSymbol(asset_))
     {
         cToken = cToken_;
         comptroller = comptroller_;
-        rewardRecipient = rewardRecipient_;
         underAsset = asset_;
     }
 
@@ -106,7 +102,7 @@ contract CompoundLendingVault is LendingBaseVault {
         return cToken.viewUnderlyingBalanceOf(address(this));
     }
 
-    function beforeWithdraw(uint256 assets, uint256 /*shares*/ ) internal virtual override {
+    function _beforeWithdraw(uint256 assets, uint256 /*shares*/ ) internal virtual override {
         /// -----------------------------------------------------------------------
         /// Withdraw assets from Compound
         /// -----------------------------------------------------------------------
@@ -117,7 +113,7 @@ contract CompoundLendingVault is LendingBaseVault {
         }
     }
 
-    function afterDeposit(uint256 assets, uint256 /*shares*/ ) internal virtual override {
+    function _afterDeposit(uint256 assets, uint256 /*shares*/ ) internal virtual override {
         /// -----------------------------------------------------------------------
         /// Deposit assets into Compound
         /// -----------------------------------------------------------------------
@@ -164,10 +160,10 @@ contract CompoundLendingVault is LendingBaseVault {
     /// -----------------------------------------------------------------------
 
     function _vaultName(ERC20 asset_) internal view virtual returns (string memory vaultName) {
-        vaultName = string.concat("ERC4626-Wrapped Compound ", asset_.symbol());
+        vaultName = string.concat("CompoundLendingVault-", asset_.symbol());
     }
 
     function _vaultSymbol(ERC20 asset_) internal view virtual returns (string memory vaultSymbol) {
-        vaultSymbol = string.concat("wc", asset_.symbol());
+        vaultSymbol = string.concat("CLV-", asset_.symbol());
     }
 }

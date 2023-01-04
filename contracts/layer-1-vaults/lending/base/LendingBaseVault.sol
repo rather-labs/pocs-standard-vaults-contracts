@@ -54,9 +54,9 @@ abstract contract LendingBaseVault is ERC4626 {
     /// Internal functions
     /// -----------------------------------------------------------------------
 
-    function beforeWithdraw(uint256 assets, uint256 shares) internal virtual {}
+    function _beforeWithdraw(uint256 assets, uint256 shares) internal virtual {}
 
-    function afterDeposit(uint256 assets, uint256 shares) internal virtual {}
+    function _afterDeposit(uint256 assets, uint256 shares) internal virtual {}
 
     function deposit(uint256 assets, address receiver) public virtual override returns (uint256 shares) {
         require(assets <= maxDeposit(receiver), "ERC4626: deposit more than max");
@@ -64,7 +64,7 @@ abstract contract LendingBaseVault is ERC4626 {
         uint256 _shares = previewDeposit(assets);
         _deposit(_msgSender(), receiver, assets, _shares);
 
-        afterDeposit(assets, _shares);
+        _afterDeposit(assets, _shares);
 
         return _shares;
     }
@@ -76,7 +76,7 @@ abstract contract LendingBaseVault is ERC4626 {
     ) public virtual override returns (uint256 shares) {
         require(assets <= maxWithdraw(owner), "ERC4626: withdraw more than max");
 
-        beforeWithdraw(assets, shares);
+        _beforeWithdraw(assets, shares);
 
         uint256 _shares = previewWithdraw(assets);
         _withdraw(_msgSender(), receiver, owner, assets, _shares);

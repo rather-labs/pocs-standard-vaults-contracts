@@ -25,7 +25,7 @@ async function main() {
 
   console.log('\n\t-- Deploying CompoundLendingVaultFactory Contract --');
   const compoundFactory = await deployContract(
-    new CompoundLendingVaultFactory__factory(deployer).deploy(COMPTROLLER_ADDRESS, CETH_ADDRESS, deployer.address)
+    new CompoundLendingVaultFactory__factory(deployer).deploy(COMPTROLLER_ADDRESS, CETH_ADDRESS)
   );
   const compoundFactoryData = {
     address: compoundFactory.address,

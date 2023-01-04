@@ -24,9 +24,6 @@ contract CompoundLendingVaultFactory is ERC4626Factory {
     /// Immutable params
     /// -----------------------------------------------------------------------
 
-    /// @notice The address that will receive the liquidity mining rewards (if any)
-    address public immutable rewardRecipient;
-
     /// @notice The Compound comptroller contract
     IComptroller public immutable comptroller;
 
@@ -44,10 +41,9 @@ contract CompoundLendingVaultFactory is ERC4626Factory {
     /// Constructor
     /// -----------------------------------------------------------------------
 
-    constructor(IComptroller comptroller_, address cEtherAddress_, address rewardRecipient_) {
+    constructor(IComptroller comptroller_, address cEtherAddress_) {
         comptroller = comptroller_;
         cEtherAddress = cEtherAddress_;
-        rewardRecipient = rewardRecipient_;
 
         // initialize underlyingToCToken
         ICERC20[] memory allCTokens = comptroller_.getAlliTokens();
@@ -70,7 +66,7 @@ contract CompoundLendingVaultFactory is ERC4626Factory {
     /// -----------------------------------------------------------------------
 
     /// @inheritdoc ERC4626Factory
-    function createERC4626(ERC20 asset) external virtual override returns (ERC4626 vault) {
+    function createERC4626(ERC20 asset, bytes memory) external virtual override returns (ERC4626 vault) {
         ICERC20 cToken = underlyingToCToken[asset];
         if (address(cToken) == address(0)) {
             revert CompoundERC4626Factory__CTokenNonexistent();
@@ -83,7 +79,7 @@ contract CompoundLendingVaultFactory is ERC4626Factory {
             )
         );
 
-        vault = new CompoundLendingVault{salt: salt}(asset, cToken, rewardRecipient, comptroller);
+        vault = new CompoundLendingVault{salt: salt}(asset, cToken, comptroller);
 
         emit CreateERC4626(asset, vault);
     }
