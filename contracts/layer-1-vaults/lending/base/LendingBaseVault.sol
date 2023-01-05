@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.17;
 
+import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import "../../Errors.sol";
+import "../../../Errors.sol";
 
 /// @title LendingBaseVault
 /// @author ffarall, LucaCevasco
 /// @notice Abstract base contract for vaults using decentarlised lending protocols
 /// @dev Adds borrowing interface to ERC4626 lending protocols vaults
-abstract contract LendingBaseVault is IERC4626 {
+abstract contract LendingBaseVault is ERC4626 {
 
     /// -----------------------------------------------------------------------
     /// Events
@@ -42,17 +42,45 @@ abstract contract LendingBaseVault is IERC4626 {
 
     /// @notice Opens a borrowing position for the sender, using the underlying
     /// lending protocol.
-    /// @param asset The asset to borrow
     /// @param amount The amount to borrow
-    function borrow(IERC20 asset, uint256 amount) external view virtual;
+    function borrow(uint256 amount) external virtual;
 
     /// @notice Closes a borrowing position for the sender, using the underlying
     /// lending protocol.
-    /// @param asset The asset to repay
     /// @param amount The amount to repay
-    function repay(IERC20 asset, uint256 amount) external view virtual;
+    function repay(uint256 amount) external virtual;
 
     /// -----------------------------------------------------------------------
     /// Internal functions
     /// -----------------------------------------------------------------------
+
+    function _beforeWithdraw(uint256 assets, uint256 shares) internal virtual {}
+
+    function _afterDeposit(uint256 assets, uint256 shares) internal virtual {}
+
+    function deposit(uint256 assets, address receiver) public virtual override returns (uint256 shares) {
+        require(assets <= maxDeposit(receiver), "ERC4626: deposit more than max");
+
+        uint256 _shares = previewDeposit(assets);
+        _deposit(_msgSender(), receiver, assets, _shares);
+
+        _afterDeposit(assets, _shares);
+
+        return _shares;
+    }
+
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    ) public virtual override returns (uint256 shares) {
+        require(assets <= maxWithdraw(owner), "ERC4626: withdraw more than max");
+
+        _beforeWithdraw(assets, shares);
+
+        uint256 _shares = previewWithdraw(assets);
+        _withdraw(_msgSender(), receiver, owner, assets, _shares);
+
+        return _shares;
+    }
 }
