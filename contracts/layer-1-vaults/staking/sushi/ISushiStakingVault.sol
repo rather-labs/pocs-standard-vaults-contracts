@@ -9,14 +9,15 @@ import {IUniswapV2Pair} from "../../../interfaces/IUniswapV2Pair.sol";
 import {IMasterChefV2} from "../../../interfaces/IMasterChefV2.sol";
 
 interface ISushiStakingVault {
-    function initialise(
+    function initialize(
         ERC20 tokenA_, 
         ERC20 tokenB_, 
         IUniswapV2Router02 router_,
         IUniswapV2Factory factory_,
         IUniswapV2Pair pair_,
         IMasterChefV2 farm_,
-        uint256 poolId_
+        uint256 poolId_,
+        address deployer
     ) external;
 
     /// -----------------------------------------------------------------------

@@ -6,6 +6,7 @@ import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.so
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {IUniswapV2Router02} from "../../../interfaces/IUniswapV2Router02.sol";
 import {IUniswapV2Factory} from "../../../interfaces/IUniswapV2Factory.sol";
 import {IUniswapV2Pair} from "../../../interfaces/IUniswapV2Pair.sol";
@@ -20,7 +21,7 @@ import {ISushiStakingVault} from "./ISushiStakingVault.sol";
 /// @dev Adds liquidity to a SushiSwap pool and stakes the LP tokens on the MasterChef
 /// contract to earn rewards. Uses LPTs as shares accounting instead of using regular
 /// vault accounting.
-contract SushiStakingVault is Ownable, ERC4626, ISushiStakingVault {
+contract SushiStakingVault is Ownable, Initializable, ERC4626, ISushiStakingVault {
     using SafeERC20 for ERC20;
     using Math for uint256;
 
@@ -46,6 +47,13 @@ contract SushiStakingVault is Ownable, ERC4626, ISushiStakingVault {
     uint256 public poolId;
 
     /// -----------------------------------------------------------------------
+    /// Private vars
+    /// -----------------------------------------------------------------------
+
+    /// @notice Amount of LPTs deposited in this vault
+    uint256 private _lptsDeposited;
+
+    /// -----------------------------------------------------------------------
     /// Constructor
     /// -----------------------------------------------------------------------
 
@@ -56,6 +64,37 @@ contract SushiStakingVault is Ownable, ERC4626, ISushiStakingVault {
     /// -----------------------------------------------------------------------
     /// ERC4626 overrides
     /// -----------------------------------------------------------------------
+
+    function initialize(
+        ERC20 tokenA_, 
+        ERC20 tokenB_, 
+        IUniswapV2Router02 router_,
+        IUniswapV2Factory factory_,
+        IUniswapV2Pair pair_,
+        IMasterChefV2 farm_,
+        uint256 poolId_,
+        address deployer
+    ) external initializer {
+        _transferOwnership(deployer);
+
+        tokenA = tokenA_;
+        tokenB = tokenB_;
+        router = router_;
+        factory = factory_;
+        pair = pair_;
+        farm = farm_;
+        poolId = poolId_;
+
+        // Setting path to swap, using simplest option as default
+        pathAtoB.push(address(tokenA));
+        pathAtoB.push(address(tokenB));
+
+        // Pre-authorising smart contracts to use this vault's tokens
+        tokenA.approve(address(router), 2**256 - 1);
+        tokenB.approve(address(router), 2**256 - 1);
+        pair.approve(address(farm), 2**256 - 1);
+        pair.approve(address(router), 2**256 - 1);
+    }
 
     /// @inheritdoc ERC4626
     function asset() public view virtual override returns (address) {
@@ -94,6 +133,11 @@ contract SushiStakingVault is Ownable, ERC4626, ISushiStakingVault {
         (, shares) = _withdrawLPTs(_msgSender(), receiver, owner, shares);
 
         return shares;
+    }
+
+    /// @inheritdoc ERC4626
+    function totalAssets() public view virtual override returns (uint256) {
+        return _convertToAssets(_lptsDeposited, Math.Rounding.Down);
     }
 
     /// @inheritdoc ERC4626
@@ -181,6 +225,8 @@ contract SushiStakingVault is Ownable, ERC4626, ISushiStakingVault {
         _stake(lptAmount);
         _mint(receiver, lptAmount);
 
+        _lptsDeposited += lptAmount;
+
         emit Deposit(caller, receiver, assets, lptAmount);
 
         return (assets, lptAmount);
@@ -203,35 +249,12 @@ contract SushiStakingVault is Ownable, ERC4626, ISushiStakingVault {
         _unstake(shares);
 
         uint256 amountA;
-        (amountA, ) = _removeLiquidity(shares);
+        amountA = _removeLiquidity(shares);
         SafeERC20.safeTransfer(ERC20(asset()), receiver, amountA);
 
         emit Withdraw(caller, receiver, owner, amountA, shares);
 
         return (amountA, shares);
-    }
-
-    function initialise(
-        ERC20 tokenA_, 
-        ERC20 tokenB_, 
-        IUniswapV2Router02 router_,
-        IUniswapV2Factory factory_,
-        IUniswapV2Pair pair_,
-        IMasterChefV2 farm_,
-        uint256 poolId_
-    ) external {
-        // TODO make it onlyOwner and manage owner in creation
-        tokenA = tokenA_;
-        tokenB = tokenB_;
-        router = router_;
-        factory = factory_;
-        pair = pair_;
-        farm = farm_;
-        poolId = poolId_;
-
-        // Setting path to swap, using simplest option as default
-        pathAtoB.push(address(tokenA));
-        pathAtoB.push(address(tokenB));
     }
 
     /// -----------------------------------------------------------------------
@@ -270,8 +293,16 @@ contract SushiStakingVault is Ownable, ERC4626, ISushiStakingVault {
     /// @param lptAmount the amount of liquidity provider tokens to burn.
     function _removeLiquidity(
         uint256 lptAmount
-    ) internal returns (uint256, uint256) {
-        return SushiStakingLogic.removeLiquidity(lptAmount, tokenA, tokenB, router, pair);
+    ) internal returns (uint256) {
+        uint256 amountA; uint256 amountB;
+        (amountA, amountB) = SushiStakingLogic.removeLiquidity(lptAmount, tokenA, tokenB, router, pair);
+
+        address[] memory path = new address[](2);
+        path[0] = address(tokenB);
+        path[1] = address(tokenA);
+        uint256 swappedAmountA = SushiStakingLogic.swap(amountB, path, router);
+
+        return amountA + swappedAmountA;
     }
 
     /// @notice Stakes LPTs to MasterChef contract to earn rewards.
@@ -284,7 +315,7 @@ contract SushiStakingVault is Ownable, ERC4626, ISushiStakingVault {
     /// @notice Claims rewards and unstakes LPTs from MasterChef contract.
     /// @param lptAmount the amount of liquidity provider tokens to burn.
     function _unstake(uint256 lptAmount) internal {
-        SushiStakingLogic.unstake(lptAmount, farm, poolId);
+        SushiStakingLogic.unstake(tokenA, lptAmount, router, farm, poolId);
     }
 
     /// -----------------------------------------------------------------------
