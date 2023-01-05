@@ -78,11 +78,7 @@ async function main() {
   const compoundLendingImplementation = await deployContract(
     new CompoundLendingVault__factory(
       deployer
-    ).deploy(
-      ZERO_ADDRESS,
-      ZERO_ADDRESS,
-      ZERO_ADDRESS,
-    )
+    ).deploy()
   );
   console.log(`Deployed at: ${sushiVaultImplementation.address}`);
 

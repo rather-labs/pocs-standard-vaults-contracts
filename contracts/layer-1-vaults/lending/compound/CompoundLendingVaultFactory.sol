@@ -80,7 +80,7 @@ contract CompoundLendingVaultFactory is Ownable, ERC4626Factory {
           asset, ICERC20(cEtherAddress_), comptroller        
         );
     }
-
+    
     /// -----------------------------------------------------------------------
     /// External functions
     /// -----------------------------------------------------------------------
