@@ -46,7 +46,7 @@ abstract contract ERC4626Factory {
         );
         vault = ERC4626(Clones.cloneDeterministic(implementation, salt));
 
-        _initialise(vault, asset, data);
+        _initialize(vault, asset, data);
 
         emit CreateERC4626(asset, vault);
     }
@@ -74,7 +74,7 @@ abstract contract ERC4626Factory {
 
     /// @notice Initialises an ERC4626 vault with the given data
     /// @param data Extra data specific to implementation of this factory
-    function _initialise(ERC4626 vault, ERC20 asset, bytes memory data) internal virtual;
+    function _initialize(ERC4626 vault, ERC20 asset, bytes memory data) internal virtual;
 
     /// @notice Determines whether a vault is already deployed or not.
     /// @param bytecodeHash The keccak256 hash of the creation code of the contract being deployed concatenated

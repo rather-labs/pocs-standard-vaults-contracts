@@ -45,7 +45,7 @@ contract SushiStakingVaultFactory is Ownable, ERC4626Factory {
     /// ERC4626 overrides
     /// -----------------------------------------------------------------------
 
-    function _initialise(ERC4626 vault, ERC20 asset, bytes memory data) internal virtual override {
+    function _initialize(ERC4626 vault, ERC20 asset, bytes memory data) internal virtual override {
         if (address(asset) == address(0)) revert InvalidAddress();
 
         (address tokenB, uint256 poolId) = abi.decode(data, (address, uint256));
@@ -54,14 +54,15 @@ contract SushiStakingVaultFactory is Ownable, ERC4626Factory {
 
         // Getting and pair
         IUniswapV2Pair pair = IUniswapV2Pair(factory.getPair(address(asset), address(tokenB)));
-        ISushiStakingVault(address(vault)).initialise(
+        ISushiStakingVault(address(vault)).initialize(
             asset,
             ERC20(tokenB),
             router,
             factory,
             pair,
             farm,
-            poolId
+            poolId,
+            msg.sender
         );
     }
 }

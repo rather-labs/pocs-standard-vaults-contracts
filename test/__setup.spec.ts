@@ -17,7 +17,11 @@ import {
   SushiStakingLogic,
   CompoundLendingVault__factory,
   CompoundLendingVaultFactory__factory,
+  IUniswapV2Router02,
 } from '../typechain-types';
+import { ERC20 } from '../typechain-types/@openzeppelin/contracts/token/ERC20';
+import ERC20_ABI from '../artifacts/@openzeppelin/contracts/token/ERC20/ERC20.sol/ERC20.json';
+import UNISWAP_ROUTER_ABI from '../artifacts/contracts/interfaces/IUniswapV2Router02.sol/IUniswapV2Router02.json';
 
 export const USDC_ADDRESS = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
 export const WETH_ADDRESS = '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619';
@@ -29,13 +33,18 @@ export const FACTORY_ADDRESS = '0xc35DADB65012eC5796536bD9864eD8773aBc74C4';
 export const COMPTROLLER_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
 export const CETH_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
 
-
 export let accounts: Signer[];
 export let deployer: Signer;
-export let user: Signer;
+export let userOne: Signer;
+export let userTwo: Signer;
 export let deployerAddress: string;
-export let userAddress: string;
+export let userOneAddress: string;
+export let userTwoAddress: string;
 export let abiCoder: AbiCoder;
+
+// Useful existing contracts
+export let wethToken: ERC20;
+export let sushiRouter: IUniswapV2Router02;
 
 // SushiStakingVault
 export let sushiLogic: SushiStakingLogic;
@@ -45,8 +54,6 @@ export let sushiVaultFactory: SushiStakingVaultFactory;
 // CompoundLendingVault
 export let compoundLendingVaultImplementation: CompoundLendingVault;
 export let compoundLendingVaultFactory: CompoundLendingVaultFactory;
-
-export let eventsLib: Events;
 
 export function makeSuiteCleanRoom(name: string, tests: () => void) {
   describe(name, () => {
@@ -64,10 +71,16 @@ before(async () => {
   abiCoder = ethers.utils.defaultAbiCoder;
   accounts = await ethers.getSigners();
   deployer = accounts[0];
-  user = accounts[1];
+  userOne = accounts[1];
+  userTwo = accounts[2];
 
   deployerAddress = await deployer.getAddress();
-  userAddress = await user.getAddress();
+  userOneAddress = await userOne.getAddress();
+  userTwoAddress = await userTwo.getAddress();
+
+  // Getting existing contracts
+  wethToken = new ethers.Contract(WETH_ADDRESS, JSON.stringify(ERC20_ABI.abi), userOne) as ERC20;
+  sushiRouter = new ethers.Contract(ROUTER_ADDRESS, JSON.stringify(UNISWAP_ROUTER_ABI.abi), userOne) as IUniswapV2Router02;
 
   // Deploying SushiStakingLogic library
   sushiLogic = await new SushiStakingLogic__factory(deployer).deploy();
@@ -90,7 +103,6 @@ before(async () => {
   );
 
   // Deploying CompoundLendingVault and Factory contracts
-
   compoundLendingVaultImplementation = await new CompoundLendingVault__factory(
     deployer
   ).deploy();
