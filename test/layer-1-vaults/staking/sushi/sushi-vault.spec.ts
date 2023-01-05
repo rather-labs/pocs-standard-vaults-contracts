@@ -132,6 +132,6 @@ describe.only('SushiVault', async () => {
       userOneWithdrawnAssets, `User expected to get around ${userOnePreviewWithdraw} WETH but got ${userOneWithdrawnAssets} WETH`
     ).to.be.approximately(userOnePreviewWithdraw, userOnePreviewWithdraw.mul(10).div(100));
 
-    console.log(`After ${blocks} blocks, user withdrew ${userOneWithdrawnAssets} WETH`);
+    console.log(`After ${blocks} blocks, User One withdrew ${userOneWithdrawnAssets} WETH`);
   });
 });

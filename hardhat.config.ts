@@ -63,7 +63,7 @@ const config: HardhatUserConfig = {
   },
   defaultNetwork: 'hardhat',
   networks: {
-    main: getCommonNetworkConfig(eNetwork.mainnet),
+    mainnet: getCommonNetworkConfig(eNetwork.mainnet),
     testnet: getCommonNetworkConfig(eNetwork.testnet),
     hardhat: {
       blockGasLimit: DEFAULT_BLOCK_GAS_LIMIT,

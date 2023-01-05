@@ -14,11 +14,11 @@ import {
 import { deployContract, waitForTx } from './helpers/utils';
 import { ZERO_ADDRESS } from '../test/helpers/constants';
 
-const ROUTER_ADDRESS = '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506';
-const MINICHEF_ADDRESS = '0x0769fd68dFb93167989C6f7254cd0D766Fb2841F';
 import { CompoundLendingVaultFactory__factory } from '../typechain-types/factories/contracts/layer-1-vaults/lending/compound/CompoundLendingVaultFactory__factory';
 import { CompoundLendingVault__factory } from '../typechain-types/factories/contracts/layer-1-vaults/lending/compound/CompoundLendingVault__factory';
 
+const ROUTER_ADDRESS = '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506';
+const MINICHEF_ADDRESS = '0x0769fd68dFb93167989C6f7254cd0D766Fb2841F';
 const COMPTROLLER_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
 const CETH_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
 
@@ -65,26 +65,26 @@ async function main() {
   );
   console.log(`Deployed at: ${sushiVaultFactory.address}`);
 
-  console.log('\n\t-- Deploying CompoundLendingVault Contract --');
-  const compoundLendingImplementation = await deployContract(
-    new CompoundLendingVault__factory(
-      deployer
-    ).deploy()
-  );
-  console.log(`Deployed at: ${sushiVaultImplementation.address}`);
+  // console.log('\n\t-- Deploying CompoundLendingVault Contract --');
+  // const compoundLendingImplementation = await deployContract(
+  //   new CompoundLendingVault__factory(
+  //     deployer
+  //   ).deploy()
+  // );
+  // console.log(`Deployed at: ${sushiVaultImplementation.address}`);
 
-  console.log('\n\t-- Deploying CompoundLendingVaultFactory Contract --');
-  const compoundFactory = await deployContract(
-    new CompoundLendingVaultFactory__factory(deployer).deploy(compoundLendingImplementation.address, COMPTROLLER_ADDRESS, CETH_ADDRESS)
-  );
+  // console.log('\n\t-- Deploying CompoundLendingVaultFactory Contract --');
+  // const compoundFactory = await deployContract(
+  //   new CompoundLendingVaultFactory__factory(deployer).deploy(compoundLendingImplementation.address, COMPTROLLER_ADDRESS, CETH_ADDRESS)
+  // );
 
-  const compoundFactoryData = {
-    address: compoundFactory.address,
-    abi: JSON.parse(compoundFactory.interface.format(FormatTypes.json) as string),
-  };
+  // const compoundFactoryData = {
+  //   address: compoundFactory.address,
+  //   abi: JSON.parse(compoundFactory.interface.format(FormatTypes.json) as string),
+  // };
 
-  fs.writeFileSync(__dirname + '/../json_contracts/compoundLendingVaultFactory.json', JSON.stringify(compoundFactoryData));
-  console.log(compoundFactoryData.address);
+  // fs.writeFileSync(__dirname + '/../json_contracts/compoundLendingVaultFactory.json', JSON.stringify(compoundFactoryData));
+  // console.log(compoundFactoryData.address);
 }
 
 main().catch((error) => {
