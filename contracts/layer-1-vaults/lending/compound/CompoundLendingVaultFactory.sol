@@ -70,7 +70,7 @@ contract CompoundLendingVaultFactory is Ownable, ERC4626Factory {
     /// ERC4626 overrides
     /// -----------------------------------------------------------------------
 
-    function _initialise(ERC4626 vault, ERC20 asset, bytes memory data) internal virtual override {
+    function _initialize(ERC4626 vault, ERC20 asset, bytes memory data) internal virtual override {
         if (address(asset) == address(0)) revert InvalidAddress();
 
         (IComptroller comptroller_, address cEtherAddress_) = abi.decode(data, (IComptroller, address));

@@ -14,11 +14,11 @@ import {
 import { deployContract, waitForTx } from './helpers/utils';
 import { ZERO_ADDRESS } from '../test/helpers/constants';
 
-const ROUTER_ADDRESS = '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506';
-const MINICHEF_ADDRESS = '0x0769fd68dFb93167989C6f7254cd0D766Fb2841F';
 import { CompoundLendingVaultFactory__factory } from '../typechain-types/factories/contracts/layer-1-vaults/lending/compound/CompoundLendingVaultFactory__factory';
 import { CompoundLendingVault__factory } from '../typechain-types/factories/contracts/layer-1-vaults/lending/compound/CompoundLendingVault__factory';
 
+const ROUTER_ADDRESS = '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506';
+const MINICHEF_ADDRESS = '0x0769fd68dFb93167989C6f7254cd0D766Fb2841F';
 const COMPTROLLER_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
 const CETH_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
 
