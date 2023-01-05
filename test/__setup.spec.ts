@@ -6,6 +6,8 @@ import { Signer } from 'ethers';
 import { ethers } from 'hardhat';
 import { ZERO_ADDRESS } from './helpers/constants';
 import { revertToSnapshot, takeSnapshot } from './helpers/utils';
+import { CompoundLendingVault } from '../typechain-types/contracts/layer-1-vaults/lending/compound/CompoundLendingVault';
+import { CompoundLendingVaultFactory } from '../typechain-types/contracts/layer-1-vaults/lending/compound/CompoundLendingVaultFactory';
 import {
   SushiStakingVault,
   SushiStakingVault__factory,
@@ -13,6 +15,8 @@ import {
   SushiStakingVaultFactory__factory,
   SushiStakingLogic__factory,
   SushiStakingLogic,
+  CompoundLendingVault__factory,
+  CompoundLendingVaultFactory__factory,
 } from '../typechain-types';
 
 export const USDC_ADDRESS = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
@@ -21,6 +25,10 @@ export const POOL_ID_USDC_WETH = 1;
 export const ROUTER_ADDRESS = '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506';
 export const MINICHEF_ADDRESS = '0x0769fd68dFb93167989C6f7254cd0D766Fb2841F';
 export const FACTORY_ADDRESS = '0xc35DADB65012eC5796536bD9864eD8773aBc74C4';
+
+export const COMPTROLLER_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
+export const CETH_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
+
 
 export let accounts: Signer[];
 export let deployer: Signer;
@@ -33,6 +41,10 @@ export let abiCoder: AbiCoder;
 export let sushiLogic: SushiStakingLogic;
 export let sushiVaultImplementation: SushiStakingVault;
 export let sushiVaultFactory: SushiStakingVaultFactory;
+
+// CompoundLendingVault
+export let compoundLendingVaultImplementation: CompoundLendingVault;
+export let compoundLendingVaultFactory: CompoundLendingVaultFactory;
 
 export let eventsLib: Events;
 
@@ -62,12 +74,13 @@ before(async () => {
   const libs = {
     'contracts/layer-1-vaults/staking/sushi/SushiStakingLogic.sol:SushiStakingLogic': sushiLogic.address
   };
-  
+
   // Deploying SushiVault and Factory contracts
   sushiVaultImplementation = await new SushiStakingVault__factory(
     libs,
     deployer
   ).deploy();
+
   sushiVaultFactory = await new SushiStakingVaultFactory__factory(
     deployer
   ).deploy(
@@ -75,4 +88,14 @@ before(async () => {
     ROUTER_ADDRESS,
     MINICHEF_ADDRESS
   );
+
+  // Deploying CompoundLendingVault and Factory contracts
+
+  compoundLendingVaultImplementation = await new CompoundLendingVault__factory(
+    deployer
+  ).deploy();
+
+  compoundLendingVaultFactory = await new CompoundLendingVaultFactory__factory(deployer)
+    .deploy(compoundLendingVaultImplementation.address, COMPTROLLER_ADDRESS, CETH_ADDRESS);
+
 });
