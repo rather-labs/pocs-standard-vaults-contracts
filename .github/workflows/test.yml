@@ -2,6 +2,13 @@ name: ci-compile-test
 
 on: pull_request
 
+env:
+  MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+  TESTNET_RPC_URL: ${{ secrets.TESTNET_RPC_URL }}
+  DEPLOYER_PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+  MAINNET_FORK: true
+  FORKING: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
