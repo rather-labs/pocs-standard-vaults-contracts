@@ -65,26 +65,26 @@ async function main() {
   );
   console.log(`Deployed at: ${sushiVaultFactory.address}`);
 
-  // console.log('\n\t-- Deploying CompoundLendingVault Contract --');
-  // const compoundLendingImplementation = await deployContract(
-  //   new CompoundLendingVault__factory(
-  //     deployer
-  //   ).deploy()
-  // );
-  // console.log(`Deployed at: ${sushiVaultImplementation.address}`);
+  console.log('\n\t-- Deploying CompoundLendingVault Contract --');
+  const compoundLendingImplementation = await deployContract(
+    new CompoundLendingVault__factory(
+      deployer
+    ).deploy()
+  );
+  console.log(`Deployed at: ${sushiVaultImplementation.address}`);
 
-  // console.log('\n\t-- Deploying CompoundLendingVaultFactory Contract --');
-  // const compoundFactory = await deployContract(
-  //   new CompoundLendingVaultFactory__factory(deployer).deploy(compoundLendingImplementation.address, COMPTROLLER_ADDRESS, CETH_ADDRESS)
-  // );
+  console.log('\n\t-- Deploying CompoundLendingVaultFactory Contract --');
+  const compoundFactory = await deployContract(
+    new CompoundLendingVaultFactory__factory(deployer).deploy(compoundLendingImplementation.address, COMPTROLLER_ADDRESS, CETH_ADDRESS)
+  );
 
-  // const compoundFactoryData = {
-  //   address: compoundFactory.address,
-  //   abi: JSON.parse(compoundFactory.interface.format(FormatTypes.json) as string),
-  // };
+  const compoundFactoryData = {
+    address: compoundFactory.address,
+    abi: JSON.parse(compoundFactory.interface.format(FormatTypes.json) as string),
+  };
 
-  // fs.writeFileSync(__dirname + '/../json_contracts/compoundLendingVaultFactory.json', JSON.stringify(compoundFactoryData));
-  // console.log(compoundFactoryData.address);
+  fs.writeFileSync(__dirname + '/../json_contracts/compoundLendingVaultFactory.json', JSON.stringify(compoundFactoryData));
+  console.log(compoundFactoryData.address);
 }
 
 main().catch((error) => {
