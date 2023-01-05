@@ -44,23 +44,13 @@ async function main() {
     new SushiStakingVault__factory(
       libs,
       deployer
-    ).deploy(
-      ZERO_ADDRESS,
-      ZERO_ADDRESS,
-      ZERO_ADDRESS,
-      ZERO_ADDRESS,
-      ZERO_ADDRESS,
-      ZERO_ADDRESS,
-      ZERO_ADDRESS,
-      0,
-    )
+    ).deploy()
   );
   console.log(`Deployed at: ${sushiVaultImplementation.address}`);
 
   console.log('\n\t-- Deploying SushiStakingVaultFactory Contract --');
   const sushiVaultFactory = await deployContract(
     new SushiStakingVaultFactory__factory(
-      libs,
       deployer
     ).deploy(
       sushiVaultImplementation.address,
