@@ -13,12 +13,13 @@ import {LibCompound} from "./lib/LibCompound.sol";
 import {IComptroller} from "../../../interfaces/IComptroller.sol";
 
 import {LendingBaseVault} from "../base/LendingBaseVault.sol";
+import {ICompoundLendingVault} from './ICompoundLendingVault.sol';
 import {CompoundERC4626__CompoundError} from '../../../Errors.sol';
 
 /// @title CompoundLendingVault
 /// @author ffarall, LucaCevasco
 /// @notice ERC4626 wrapper for Compound Finance
-contract CompoundLendingVault is LendingBaseVault {
+contract CompoundLendingVault is LendingBaseVault, ICompoundLendingVault {
     /// -----------------------------------------------------------------------
     /// Libraries usage
     /// -----------------------------------------------------------------------
@@ -43,26 +44,28 @@ contract CompoundLendingVault is LendingBaseVault {
     uint256 internal constant _NO_ERROR = 0;
 
     /// -----------------------------------------------------------------------
-    /// Immutable params
+    /// params
     /// -----------------------------------------------------------------------
 
     /// @notice The Compound cToken contract
-    ICERC20 public immutable cToken;
+    ICERC20 public cToken;
 
     // @notice The underlying token asset
-    ERC20 public immutable underAsset;
+    ERC20 public underAsset;
 
     /// @notice The Compound comptroller contract
-    IComptroller public immutable comptroller;
+    IComptroller public comptroller;
 
     /// -----------------------------------------------------------------------
     /// Constructor
     /// -----------------------------------------------------------------------
 
-    constructor(ERC20 asset_, ICERC20 cToken_, IComptroller comptroller_)
-        ERC4626(asset_)
-        ERC20(_vaultName(asset_), _vaultSymbol(asset_))
-    {
+    constructor()
+        ERC4626(IERC20(address(0)))
+        ERC20('CompoundLendingVault', 'CLV') { }
+
+    function initialise(ERC20 asset_, ICERC20 cToken_, IComptroller comptroller_) external {
+        // TODO make it onlyOwner and manage owner in creation
         cToken = cToken_;
         comptroller = comptroller_;
         underAsset = asset_;
@@ -153,17 +156,5 @@ contract CompoundLendingVault is LendingBaseVault {
         uint256 cashInShares = convertToShares(cash);
         uint256 shareBalance = balanceOf(owner);
         return cashInShares < shareBalance ? cashInShares : shareBalance;
-    }
-
-    /// -----------------------------------------------------------------------
-    /// ERC20 metadata generation
-    /// -----------------------------------------------------------------------
-
-    function _vaultName(ERC20 asset_) internal view virtual returns (string memory vaultName) {
-        vaultName = string.concat("CompoundLendingVault-", asset_.symbol());
-    }
-
-    function _vaultSymbol(ERC20 asset_) internal view virtual returns (string memory vaultSymbol) {
-        vaultSymbol = string.concat("CLV-", asset_.symbol());
     }
 }
