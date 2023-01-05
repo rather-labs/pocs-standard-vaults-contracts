@@ -9,19 +9,15 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IUniswapV2Router02} from "../../../interfaces/IUniswapV2Router02.sol";
 import {IMasterChefV2} from "../../../interfaces/IMasterChefV2.sol";
 import {IUniswapV2Factory} from "../../../interfaces/IUniswapV2Factory.sol";
+import {IUniswapV2Pair} from "../../../interfaces/IUniswapV2Pair.sol";
 import {ERC4626Factory} from "../../../base/ERC4626Factory.sol";
-import {SushiStakingVault} from "./SushiStakingVault.sol";
+import {SushiStakingVault, ISushiStakingVault} from "./SushiStakingVault.sol";
 import "../../../Errors.sol";
 
 /// @title SushiStakingVaultFactory
 /// @author ffarall, LucaCevasco
 /// @notice Factory for creating SushiStakingVault contracts
 contract SushiStakingVaultFactory is Ownable, ERC4626Factory {
-    /// -----------------------------------------------------------------------
-    /// Errors
-    /// -----------------------------------------------------------------------
-
-
     /// -----------------------------------------------------------------------
     /// Immutable params
     /// -----------------------------------------------------------------------
@@ -37,7 +33,8 @@ contract SushiStakingVaultFactory is Ownable, ERC4626Factory {
     /// Constructor
     /// -----------------------------------------------------------------------
 
-    constructor(IUniswapV2Router02 router_, IMasterChefV2 farm_) {
+    constructor(address implementation_, IUniswapV2Router02 router_, IMasterChefV2 farm_) {
+        implementation = implementation_;
         router = router_;
         farm = farm_;
 
@@ -45,33 +42,26 @@ contract SushiStakingVaultFactory is Ownable, ERC4626Factory {
     }
 
     /// -----------------------------------------------------------------------
-    /// External functions
+    /// ERC4626 overrides
     /// -----------------------------------------------------------------------
 
-    /// @inheritdoc ERC4626Factory
-    function createERC4626(ERC20 asset, bytes memory data) external virtual override returns (ERC4626 vault) {
+    function _initialise(ERC4626 vault, ERC20 asset, bytes memory data) internal virtual override {
         if (address(asset) == address(0)) revert InvalidAddress();
 
         (address tokenB, uint256 poolId) = abi.decode(data, (address, uint256));
         if (tokenB == address(0)) revert InvalidAddress();
         if (poolId == 0) revert SushiStakingVaultFactory__InvalidPoolID();
 
-        bytes32 salt = keccak256(
-            abi.encodePacked(
-                implementation,
-                asset
-            )
-        );
-        vault = new SushiStakingVault{salt: salt}(
-            asset,
+        // Getting and pair
+        IUniswapV2Pair pair = IUniswapV2Pair(factory.getPair(address(asset), address(tokenB)));
+        ISushiStakingVault(address(vault)).initialise(
             asset,
             ERC20(tokenB),
             router,
             factory,
+            pair,
             farm,
             poolId
         );
-
-        emit CreateERC4626(asset, vault);
     }
 }

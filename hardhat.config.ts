@@ -1,6 +1,7 @@
 import '@nomicfoundation/hardhat-toolbox';
 import '@nomiclabs/hardhat-etherscan';
 import 'hardhat-spdx-license-identifier';
+import 'hardhat-contract-sizer';
 import { HardhatUserConfig } from 'hardhat/config';
 import dotenv from 'dotenv';
 import glob from 'glob';
@@ -18,7 +19,7 @@ if (!process.env.SKIP_LOAD) {
   });
 }
 
-const DEFAULT_BLOCK_GAS_LIMIT = 12450000;
+const DEFAULT_BLOCK_GAS_LIMIT = 30_000_000;
 
 const FORKING = process.env.FORKING === 'true';
 const MAINNET_FORK = process.env.MAINNET_FORK === 'true';

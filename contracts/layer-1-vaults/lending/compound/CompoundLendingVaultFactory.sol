@@ -3,16 +3,20 @@ pragma solidity ^0.8.17;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {ICERC20} from "../../../interfaces/ICERC20.sol";
 import {CompoundLendingVault} from "./CompoundLendingVault.sol";
 import {IComptroller} from "../../../interfaces/IComptroller.sol";
 import {ERC4626Factory} from "../../../base/ERC4626Factory.sol";
+import {ICompoundLendingVault} from './ICompoundLendingVault.sol';
+
+import "../../../Errors.sol";
 
 /// @title CompoundLendingVaultFactory
 /// @author ffarall, LucaCevasco
 /// @notice Factory for creating CompoundERC4626 contracts
-contract CompoundLendingVaultFactory is ERC4626Factory {
+contract CompoundLendingVaultFactory is Ownable, ERC4626Factory {
     /// -----------------------------------------------------------------------
     /// Errors
     /// -----------------------------------------------------------------------
@@ -41,7 +45,8 @@ contract CompoundLendingVaultFactory is ERC4626Factory {
     /// Constructor
     /// -----------------------------------------------------------------------
 
-    constructor(IComptroller comptroller_, address cEtherAddress_) {
+    constructor(address implementation_, IComptroller comptroller_, address cEtherAddress_) {
+        implementation = implementation_;
         comptroller = comptroller_;
         cEtherAddress = cEtherAddress_;
 
@@ -62,27 +67,23 @@ contract CompoundLendingVaultFactory is ERC4626Factory {
     }
 
     /// -----------------------------------------------------------------------
-    /// External functions
+    /// ERC4626 overrides
     /// -----------------------------------------------------------------------
 
-    /// @inheritdoc ERC4626Factory
-    function createERC4626(ERC20 asset, bytes memory) external virtual override returns (ERC4626 vault) {
-        ICERC20 cToken = underlyingToCToken[asset];
-        if (address(cToken) == address(0)) {
-            revert CompoundERC4626Factory__CTokenNonexistent();
-        }
-        
-        bytes32 salt = keccak256(
-            abi.encodePacked(
-                implementation,
-                asset
-            )
+    function _initialise(ERC4626 vault, ERC20 asset, bytes memory data) internal virtual override {
+        if (address(asset) == address(0)) revert InvalidAddress();
+
+        (IComptroller comptroller_, address cEtherAddress_) = abi.decode(data, (IComptroller, address));
+        if (address(comptroller_) == address(0)) revert InvalidAddress();
+
+        ICompoundLendingVault(address(vault)).initialise(
+          asset, ICERC20(cEtherAddress_), comptroller        
         );
-
-        vault = new CompoundLendingVault{salt: salt}(asset, cToken, comptroller);
-
-        emit CreateERC4626(asset, vault);
     }
+    
+    /// -----------------------------------------------------------------------
+    /// External functions
+    /// -----------------------------------------------------------------------
 
     /// @notice Updates the underlyingToCToken mapping in order to support newly added cTokens
     /// @dev This is needed because Compound doesn't have an onchain registry of cTokens corresponding to underlying assets.
