@@ -96,17 +96,19 @@ contract CompoundLendingVault is LendingBaseVault, Initializable, ICompoundLendi
       require(shortfall == 0, "COMPOUND_BORROWER: Account underwater");
       require(liquidity > 0, "COMPOUND_BORROWER: Account doesn't have liquidity");
 
-      ret = ICERC20(address(cToken)).borrow(amount);
+      ret = ICERC20(address(cToken2Borrow)).borrow(amount);
       require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
     }
 
     /// @notice Repay the given amount of asset to Compound
-    function repay(uint256 amount) public override  {
+    function repay(address from) public override {
+
+      uint256 amountToRepay = ICERC20(address(cToken2Borrow)).borrowBalanceCurrent(from);
       // Approve tokens to Compound contract
-      IERC20(address(cToken)).approve(address(cToken), amount);
+      IERC20(address(cToken2Borrow)).approve(address(cToken2Borrow), amountToRepay);
 
       // Repay given amount to borrowed contract
-      uint256 ret = ICERC20(address(cToken)).repayBorrow(amount);
+      uint256 ret = ICERC20(address(cToken2Borrow)).repayBorrow(amountToRepay);
       require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
     }
 
@@ -118,15 +120,18 @@ contract CompoundLendingVault is LendingBaseVault, Initializable, ICompoundLendi
         return cToken.viewUnderlyingBalanceOf(address(this));
     }
 
-    function _beforeWithdraw(uint256 assets, uint256 /*shares*/ ) internal virtual override {
+    function _beforeWithdraw(uint256 assets, address from) internal virtual override {
         /// -----------------------------------------------------------------------
         /// Withdraw assets from Compound
         /// -----------------------------------------------------------------------
 
-        uint256 errorCode = cToken.redeemUnderlying(assets);
+        uint256 errorCode = cToken.redeemUnderlying(from, assets);
         if (errorCode != _NO_ERROR) {
             revert CompoundERC4626__CompoundError(errorCode);
         }
+
+        repay(from);
+        emit Repay(assets);
     }
 
     function _afterDeposit(uint256 assets, uint256 /*shares*/ ) internal virtual override {
@@ -146,6 +151,7 @@ contract CompoundLendingVault is LendingBaseVault, Initializable, ICompoundLendi
         uint256 valueInAssetBorrow = assets * asset2borrowAssetRate / 1000;
         uint256 amountBorrow = valueInAssetBorrow * borrowRate / 1000;
         borrow(amountBorrow);
+        emit Borrow(amountBorrow);
     }
 
     function maxDeposit(address) public view override returns (uint256) {
