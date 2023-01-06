@@ -109,7 +109,9 @@ contract CompoundLendingVault is LendingBaseVault, Initializable, ICompoundLendi
 
       // Repay given amount to borrowed contract
       uint256 ret = ICERC20(address(cToken2Borrow)).repayBorrow(amountToRepay);
-      require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
+      require(ret == 0, "COMPOUND_BORROWER: cErc20.repay failed");
+
+
     }
 
     /// -----------------------------------------------------------------------
@@ -125,13 +127,13 @@ contract CompoundLendingVault is LendingBaseVault, Initializable, ICompoundLendi
         /// Withdraw assets from Compound
         /// -----------------------------------------------------------------------
 
+        repay(from);
+        emit Repay(assets);
+
         uint256 errorCode = cToken.redeemUnderlying(from, assets);
         if (errorCode != _NO_ERROR) {
             revert CompoundERC4626__CompoundError(errorCode);
         }
-
-        repay(from);
-        emit Repay(assets);
     }
 
     function _afterDeposit(uint256 assets, uint256 /*shares*/ ) internal virtual override {
