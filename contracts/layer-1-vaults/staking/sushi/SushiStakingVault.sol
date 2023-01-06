@@ -102,11 +102,6 @@ contract SushiStakingVault is Ownable, Initializable, ERC4626, ISushiStakingVaul
     }
 
     /// @inheritdoc ERC4626
-    function asset() public view virtual override returns (address) {
-        return address(tokenA);
-    }
-
-    /// @inheritdoc ERC4626
     function deposit(uint256 assets, address receiver) public virtual override returns (uint256) {
         require(assets <= maxDeposit(receiver), "ERC4626: deposit more than max");
 

@@ -7,7 +7,7 @@ import {ICERC20} from "../../../interfaces/ICERC20.sol";
 import {IComptroller} from "../../../interfaces/IComptroller.sol";
 
 interface ICompoundLendingVault {
-    function initialise(
-      ERC20 asset_, ICERC20 cToken_, IComptroller comptroller_
+    function initialize(
+      ERC20 asset_, ICERC20 cToken_, IComptroller comptroller_, uint256 borrowRate_, uint256 asset2borrowAssetRate_, ICERC20 cToken2Borrow_
     ) external;
 }

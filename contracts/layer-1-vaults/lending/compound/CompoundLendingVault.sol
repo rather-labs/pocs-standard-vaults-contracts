@@ -3,6 +3,7 @@ pragma solidity ^0.8.17;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -19,23 +20,22 @@ import {CompoundERC4626__CompoundError} from '../../../Errors.sol';
 /// @title CompoundLendingVault
 /// @author ffarall, LucaCevasco
 /// @notice ERC4626 wrapper for Compound Finance
-contract CompoundLendingVault is LendingBaseVault, ICompoundLendingVault {
+contract CompoundLendingVault is LendingBaseVault, Initializable, ICompoundLendingVault {
+
+    /// -----------------------------------------------------------------------
+    /// Events
+    /// -----------------------------------------------------------------------
+
+    event Borrow(uint256 amount);
+
+    event Repay(uint256 amount);
+
     /// -----------------------------------------------------------------------
     /// Libraries usage
     /// -----------------------------------------------------------------------
 
     using LibCompound for ICERC20;
     using SafeERC20 for ERC20;
-
-    /// -----------------------------------------------------------------------
-    /// Events
-    /// -----------------------------------------------------------------------
-
-    event ClaimRewards(uint256 amount);
-
-    event Borrow(uint256 amount);
-
-    event Repay(uint256 amount);
 
     /// -----------------------------------------------------------------------
     /// Constants
@@ -47,7 +47,7 @@ contract CompoundLendingVault is LendingBaseVault, ICompoundLendingVault {
     /// params
     /// -----------------------------------------------------------------------
 
-    /// @notice The Compound cToken contract
+    /// @notice The Compound cToken contract for the collateral asset
     ICERC20 public cToken;
 
     // @notice The underlying token asset
@@ -55,6 +55,16 @@ contract CompoundLendingVault is LendingBaseVault, ICompoundLendingVault {
 
     /// @notice The Compound comptroller contract
     IComptroller public comptroller;
+
+    /// @notice The ratio between the value of the asset borrowed and the asset lent,
+    /// in percentage terms with one decimal (for 75.5%, borrowRate = 755).
+    uint256 public borrowRate;
+
+    /// @notice The ratio between the value of the asset borrowed and the asset lent
+    uint256 public asset2borrowAssetRate;
+
+    /// @notice The Compound cToken contract for the borrowed asset
+    ICERC20 public cToken2Borrow;
 
     /// -----------------------------------------------------------------------
     /// Constructor
@@ -64,11 +74,14 @@ contract CompoundLendingVault is LendingBaseVault, ICompoundLendingVault {
         ERC4626(IERC20(address(0)))
         ERC20('CompoundLendingVault', 'CLV') { }
 
-    function initialise(ERC20 asset_, ICERC20 cToken_, IComptroller comptroller_) external {
+    function initialize(ERC20 asset_, ICERC20 cToken_, IComptroller comptroller_, uint256 borrowRate_, uint256 asset2borrowAssetRate_, ICERC20 cToken2Borrow_) external initializer {
         // TODO make it onlyOwner and manage owner in creation
         cToken = cToken_;
         comptroller = comptroller_;
         underAsset = asset_;
+        borrowRate = borrowRate_;
+        cToken2Borrow = cToken2Borrow_;
+        asset2borrowAssetRate = asset2borrowAssetRate_;
     }
 
     /// -----------------------------------------------------------------------
@@ -125,10 +138,14 @@ contract CompoundLendingVault is LendingBaseVault, ICompoundLendingVault {
         underAsset.safeApprove(address(cToken), assets);
 
         // deposit into cToken
-        uint256 errorCode = cToken.mint(assets);
+        uint256 errorCode = cToken.mintForSelfAndEnterMarket(assets);
         if (errorCode != _NO_ERROR) {
             revert CompoundERC4626__CompoundError(errorCode);
         }
+        // borrow assets (assets 200 * borrowRate 75.5 = 150.1)
+        uint256 valueInAssetBorrow = assets * asset2borrowAssetRate / 1000;
+        uint256 amountBorrow = valueInAssetBorrow * borrowRate / 1000;
+        borrow(amountBorrow);
     }
 
     function maxDeposit(address) public view override returns (uint256) {

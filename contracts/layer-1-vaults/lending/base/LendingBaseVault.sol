@@ -12,15 +12,6 @@ import "../../../Errors.sol";
 abstract contract LendingBaseVault is ERC4626 {
 
     /// -----------------------------------------------------------------------
-    /// Events
-    /// -----------------------------------------------------------------------
-
-    /// @notice Emitted when a shareholder borrows tokens form underlying protocol
-    /// @param asset The asset borrowed
-    /// @param borrower The address requesting the borrow position
-    event Borrow(IERC20 indexed asset, address borrower);
-
-    /// -----------------------------------------------------------------------
     /// Modifiers
     /// -----------------------------------------------------------------------
 
