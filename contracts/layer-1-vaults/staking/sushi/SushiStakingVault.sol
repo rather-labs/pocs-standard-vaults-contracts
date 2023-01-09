@@ -62,7 +62,7 @@ contract SushiStakingVault is Ownable, Initializable, ERC4626, ISushiStakingVaul
     ERC20("SushiStakingVault", "SSV") { }
 
     /// -----------------------------------------------------------------------
-    /// ERC4626 overrides
+    /// Initalizable
     /// -----------------------------------------------------------------------
 
     function initialize(
@@ -95,6 +95,10 @@ contract SushiStakingVault is Ownable, Initializable, ERC4626, ISushiStakingVaul
         pair.approve(address(farm), 2**256 - 1);
         pair.approve(address(router), 2**256 - 1);
     }
+
+    /// -----------------------------------------------------------------------
+    /// ERC4626 overrides
+    /// -----------------------------------------------------------------------
 
     /// @inheritdoc ERC4626
     function asset() public view virtual override returns (address) {
