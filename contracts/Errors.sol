@@ -3,6 +3,8 @@ pragma solidity ^0.8.17;
 
 error InvalidAddress();
 
+error ERC4626Factory__VaultExistsAlready(address vault);
+
 error LendingBaseVault__NotShareholder(address who);
 
 error CompoundERC4626__CompoundError(uint256 errorCode);

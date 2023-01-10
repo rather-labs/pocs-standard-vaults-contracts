@@ -5,6 +5,8 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 
+import "../../../Errors.sol";
+
 /// @title ERC4626Factory
 /// @author ffarall, LucaCevasco
 /// @notice Abstract base contract for deploying ERC4626 wrappers
@@ -44,6 +46,10 @@ abstract contract ERC4626Factory {
                 asset
             )
         );
+
+        if (_vaultExists(keccak256(abi.encodePacked(implementation, asset))) revert ERC4626Factory__VaultExistsAlready({
+            vault: computeERC4626Address(asset, data)
+        });
         vault = ERC4626(Clones.cloneDeterministic(implementation, salt));
 
         _initialize(vault, asset, data);
@@ -68,6 +74,19 @@ abstract contract ERC4626Factory {
         );
     }
 
+    /// @notice Determines whether a vault is already deployed or not.
+    /// @param asset The base asset used by the vault
+    /// @param data Extra data specific to implementation of this factory
+    /// @return exists true if vault exists, false otherwise.
+    function vaultExists(ERC20 asset, bytes calldata data) public view returns (bool exists) {
+        address vault = computeCreate2Address(asset, data);
+        uint32 size;
+        assembly {
+            size := extcodesize(vault)
+        }
+        return (size > 0);
+    }
+
     /// -----------------------------------------------------------------------
     /// Internal functions
     /// -----------------------------------------------------------------------
@@ -75,19 +94,6 @@ abstract contract ERC4626Factory {
     /// @notice Initialises an ERC4626 vault with the given data
     /// @param data Extra data specific to implementation of this factory
     function _initialize(ERC4626 vault, ERC20 asset, bytes memory data) internal virtual;
-
-    /// @notice Determines whether a vault is already deployed or not.
-    /// @param bytecodeHash The keccak256 hash of the creation code of the contract being deployed concatenated
-    /// with the ABI-encoded constructor arguments.
-    /// @return exists true if vault exists, false otherwise.
-    function _vaultExists(bytes32 bytecodeHash) internal view returns (bool exists) {
-        address vault = _computeCreate2Address(bytecodeHash);
-        uint32 size;
-        assembly {
-            size := extcodesize(vault)
-        }
-        return (size > 0);
-    }
 
     /// @notice Computes the address of a contract deployed by this factory using CREATE2, given
     /// the bytecode hash of the contract. Can also be used to predict addresses of contracts yet to
