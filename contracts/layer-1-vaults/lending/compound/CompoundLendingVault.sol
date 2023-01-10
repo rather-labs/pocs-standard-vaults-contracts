@@ -170,6 +170,10 @@ contract CompoundLendingVault is LendingBaseVault, Initializable, ICompoundLendi
     /// ERC4626 overrides
     /// -----------------------------------------------------------------------
 
+    function asset() public view virtual override returns (address) {
+        return address(underAsset);
+    }
+
     function totalAssets() public view virtual override returns (uint256) {
         return cToken.viewUnderlyingBalanceOf(address(this));
     }
