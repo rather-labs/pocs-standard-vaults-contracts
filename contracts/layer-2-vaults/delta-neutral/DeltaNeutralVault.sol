@@ -135,50 +135,22 @@ contract DeltaNeutralVault is Ownable, Initializable, ERC4626 {
         // Withdraw from lending vault
         lendingVault.withdraw(assets, receiver, owner);
 
+        // Transfering leftover tokens from staking investment
+        uint256 amountStakingAssets = stakingAsset.balanceOf(address(this));
+        SafeERC20.safeTransferFrom(stakingAsset, caller, address(this), amountStakingAssets);
+
         super._withdraw(caller, receiver, owner, assets, shares); 
     }
 
-    /// TODO @inheritdoc ERC4626
-    function _convertToShares(uint256 assets, Math.Rounding rounding) internal view virtual override returns (uint256) {
-        // // Getting reserves of tokenA in Uniswap Pair
-        // uint256 reserve0; uint256 reserve1; uint256 reserveA;
-        // (reserve0, reserve1, ) = pair.getReserves();
-        // address token0 = pair.token0();
-        // address token1 = pair.token1();
-
-        // if (address(tokenA) == token0) {
-        //     reserveA = reserve0;
-        // } else if (address(tokenA) == token1) {
-        //     reserveA = reserve1;
-        // } else {
-        //     return _initialConvertToShares(assets, rounding);
-        // }
-
-        // // Getting total supply of LPTs in Uniswap Pair
-        // uint256 lptSupply = pair.totalSupply();
-
-        // return (assets / 2).mulDiv(lptSupply, reserveA, rounding);
+    /// @inheritdoc ERC4626
+    function _convertToShares(uint256 assets, Math.Rounding) internal view virtual override returns (uint256) {
+        // TODO this is an oversimplified estimation
+        lendingVault.convertToShares(assets);
     }
 
-    /// TODO @inheritdoc ERC4626
-    function _convertToAssets(uint256 shares, Math.Rounding rounding) internal view virtual override returns (uint256) {
-        // // Getting reserves of tokenA in Uniswap Pair
-        // uint256 reserve0; uint256 reserve1; uint256 reserveA;
-        // (reserve0, reserve1, ) = pair.getReserves();
-        // address token0 = pair.token0();
-        // address token1 = pair.token1();
-
-        // if (address(tokenA) == token0) {
-        //     reserveA = reserve0;
-        // } else if (address(tokenA) == token1) {
-        //     reserveA = reserve1;
-        // } else {
-        //     return _initialConvertToAssets(shares, rounding);
-        // }
-
-        // // Getting total supply of LPTs in Uniswap Pair
-        // uint256 lptSupply = pair.totalSupply();
-
-        // return shares.mulDiv(reserveA, lptSupply, rounding) * 2;
+    /// @inheritdoc ERC4626
+    function _convertToAssets(uint256 shares, Math.Rounding) internal view virtual override returns (uint256) {
+        // TODO this is an oversimiplified estimation
+        lendingVault.convertToAssets(shares);
     }
 }
