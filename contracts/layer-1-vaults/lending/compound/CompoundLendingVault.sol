@@ -56,7 +56,7 @@ contract CompoundLendingVault is LendingBaseVault, Initializable, ICompoundLendi
     /// @notice The Compound cToken contract for the collateral asset
     ICERC20 public cToken;
 
-    // @notice The underlying token asset
+    /// @notice The underlying token asset
     ERC20 public underAsset;
 
     /// @notice The Compound comptroller contract

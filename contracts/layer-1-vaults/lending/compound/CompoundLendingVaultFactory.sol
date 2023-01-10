@@ -117,7 +117,7 @@ contract CompoundLendingVaultFactory is Ownable, ERC4626Factory {
     /// a valid result regardless of whether the vault has already been deployed.
     /// @param asset The base asset used by the vault
     /// @return vault The vault corresponding to the asset
-    function computeERC4626Address(ERC20 asset, bytes calldata data) external view virtual override returns (ERC4626 vault) {
+    function computeERC4626Address(ERC20 asset, bytes memory data) public view virtual override returns (ERC4626 vault) {
         (
             ,
             ,

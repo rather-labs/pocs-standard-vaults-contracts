@@ -10,6 +10,17 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 import {LendingBaseVault} from "../../layer-1-vaults/lending/base/LendingBaseVault.sol";
 import {IUniswapV2Router02} from "../../interfaces/IUniswapV2Router02.sol";
 
+import {ERC4626Factory} from "../../base/ERC4626Factory.sol";
+
+/// -----------------------------------------------------------------------
+/// Structs for params of contract
+/// -----------------------------------------------------------------------
+struct VaultParams {
+    ERC4626Factory factory;
+    ERC20 asset;
+    bytes data;
+}
+
 /// @title DeltaNeutralVault
 /// @author ffarall, LucaCevasco
 /// @notice Automated delta neutral DeFi strategy that uses a lending vault and a
@@ -25,8 +36,14 @@ contract DeltaNeutralVault is Ownable, Initializable, ERC4626 {
     /// Immutable params
     /// -----------------------------------------------------------------------
 
+    /// @notice Underlying asset of this vault, and that which is supplied as collateral
+    /// to the lending vault.
+    ERC20 public lendingAsset;
+    /// @notice Asset borrowed from the lending vault, and that which is supplied to
+    /// the staking vault.
+    ERC20 public stakingAsset;
     /// @notice Lending vault used for providing collateral and borrowing against it
-    LendingBaseVault public lendingVault;
+    ERC4626 public lendingVault;
     /// @notice Staking vault in which this vault invests what borrows from the lending vault
     ERC4626 public stakingVault;
     /// @notice The ratio between the value of the asset borrowed and the asset lent,
@@ -46,21 +63,45 @@ contract DeltaNeutralVault is Ownable, Initializable, ERC4626 {
     /// -----------------------------------------------------------------------
 
     function initialize(
-        LendingBaseVault lendingVault_,
-        ERC4626 stakingVault_,
-        uint256 borrowRate_,
+        VaultParams memory lendingVaultParams,
+        VaultParams memory stakingVaultParams,
         address deployer
     ) external initializer {
         _transferOwnership(deployer);
 
-        lendingVault = lendingVault_;
-        stakingVault = stakingVault_;
-        borrowRate = borrowRate_;
+        lendingAsset = lendingVaultParams.asset;
+        stakingAsset = stakingVaultParams.asset;
+        ERC4626Factory lendingVaultFactory = lendingVaultParams.factory;
+        ERC4626Factory stakingVaultFactory = stakingVaultParams.factory;
+
+        // Get lending vault from factories
+        if (lendingVaultFactory.vaultExists(lendingAsset, lendingVaultParams.data)) {
+            lendingVault = lendingVaultFactory.computeERC4626Address(lendingAsset, lendingVaultParams.data);
+        } else {
+            lendingVault = lendingVaultFactory.createERC4626(lendingAsset, lendingVaultParams.data);
+        }
+
+        // Get satking vault from factories
+        if (stakingVaultFactory.vaultExists(stakingAsset, stakingVaultParams.data)) {
+            stakingVault = stakingVaultFactory.computeERC4626Address(stakingAsset, stakingVaultParams.data);
+        } else {
+            stakingVault = stakingVaultFactory.createERC4626(stakingAsset, stakingVaultParams.data);
+        }
+
+        // ERC20 authorisations
+        lendingAsset.safeApprove(address(lendingVault), 2**256 - 1);
+        stakingAsset.safeApprove(address(lendingVault), 2**256 - 1);
+        stakingAsset.safeApprove(address(stakingVault), 2**256 - 1);
     }
 
     /// -----------------------------------------------------------------------
     /// ERC4626 overrides
     /// -----------------------------------------------------------------------
+
+    /// @inheritdoc ERC4626
+    function asset() public view virtual override returns (address) {
+        return address(lendingAsset);
+    }
 
     /// @inheritdoc ERC4626
     function _deposit(
@@ -69,57 +110,75 @@ contract DeltaNeutralVault is Ownable, Initializable, ERC4626 {
         uint256 assets, 
         uint256 shares
     ) internal virtual override {
+        super._deposit(caller, receiver, assets, shares);
+
+        // Deposit in lending vault
         lendingVault.deposit(assets, address(this));
 
-        // TODO deposit in staking vault
+        // Deposit in staking vault all that was borrowed from the lending vault
+        uint256 amountAssetStake = stakingAsset.balanceOf(address(this));
         stakingVault.deposit(amountAssetStake, address(this));
-
-        super._deposit(caller, receiver, assets, shares);
     }
 
-    // TODO _withdraw
-
     /// @inheritdoc ERC4626
+    function _withdraw(
+        address caller, 
+        address receiver, 
+        address owner, 
+        uint256 assets, 
+        uint256 shares
+    ) internal virtual override {
+        // Withdraw from staking vault
+        uint256 stakingShares = stakingVault.balanceOf(address(this));
+        stakingVault.redeem(stakingShares, receiver, owner);
+
+        // Withdraw from lending vault
+        lendingVault.withdraw(assets, receiver, owner);
+
+        super._withdraw(caller, receiver, owner, assets, shares); 
+    }
+
+    /// TODO @inheritdoc ERC4626
     function _convertToShares(uint256 assets, Math.Rounding rounding) internal view virtual override returns (uint256) {
-        // Getting reserves of tokenA in Uniswap Pair
-        uint256 reserve0; uint256 reserve1; uint256 reserveA;
-        (reserve0, reserve1, ) = pair.getReserves();
-        address token0 = pair.token0();
-        address token1 = pair.token1();
+        // // Getting reserves of tokenA in Uniswap Pair
+        // uint256 reserve0; uint256 reserve1; uint256 reserveA;
+        // (reserve0, reserve1, ) = pair.getReserves();
+        // address token0 = pair.token0();
+        // address token1 = pair.token1();
 
-        if (address(tokenA) == token0) {
-            reserveA = reserve0;
-        } else if (address(tokenA) == token1) {
-            reserveA = reserve1;
-        } else {
-            return _initialConvertToShares(assets, rounding);
-        }
+        // if (address(tokenA) == token0) {
+        //     reserveA = reserve0;
+        // } else if (address(tokenA) == token1) {
+        //     reserveA = reserve1;
+        // } else {
+        //     return _initialConvertToShares(assets, rounding);
+        // }
 
-        // Getting total supply of LPTs in Uniswap Pair
-        uint256 lptSupply = pair.totalSupply();
+        // // Getting total supply of LPTs in Uniswap Pair
+        // uint256 lptSupply = pair.totalSupply();
 
-        return (assets / 2).mulDiv(lptSupply, reserveA, rounding);
+        // return (assets / 2).mulDiv(lptSupply, reserveA, rounding);
     }
 
-    /// @inheritdoc ERC4626
+    /// TODO @inheritdoc ERC4626
     function _convertToAssets(uint256 shares, Math.Rounding rounding) internal view virtual override returns (uint256) {
-        // Getting reserves of tokenA in Uniswap Pair
-        uint256 reserve0; uint256 reserve1; uint256 reserveA;
-        (reserve0, reserve1, ) = pair.getReserves();
-        address token0 = pair.token0();
-        address token1 = pair.token1();
+        // // Getting reserves of tokenA in Uniswap Pair
+        // uint256 reserve0; uint256 reserve1; uint256 reserveA;
+        // (reserve0, reserve1, ) = pair.getReserves();
+        // address token0 = pair.token0();
+        // address token1 = pair.token1();
 
-        if (address(tokenA) == token0) {
-            reserveA = reserve0;
-        } else if (address(tokenA) == token1) {
-            reserveA = reserve1;
-        } else {
-            return _initialConvertToAssets(shares, rounding);
-        }
+        // if (address(tokenA) == token0) {
+        //     reserveA = reserve0;
+        // } else if (address(tokenA) == token1) {
+        //     reserveA = reserve1;
+        // } else {
+        //     return _initialConvertToAssets(shares, rounding);
+        // }
 
-        // Getting total supply of LPTs in Uniswap Pair
-        uint256 lptSupply = pair.totalSupply();
+        // // Getting total supply of LPTs in Uniswap Pair
+        // uint256 lptSupply = pair.totalSupply();
 
-        return shares.mulDiv(reserveA, lptSupply, rounding) * 2;
+        // return shares.mulDiv(reserveA, lptSupply, rounding) * 2;
     }
 }
