@@ -55,7 +55,7 @@ abstract contract ERC4626Factory {
     /// a valid result regardless of whether the vault has already been deployed.
     /// @param asset The base asset used by the vault
     /// @return vault The vault corresponding to the asset
-    function computeERC4626Address(ERC20 asset) external view virtual returns (ERC4626 vault) {
+    function computeERC4626Address(ERC20 asset, bytes calldata) external view virtual returns (ERC4626 vault) {
         vault = ERC4626(
             _computeCreate2Address(
                 keccak256(

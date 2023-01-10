@@ -12,15 +12,6 @@ import "../../../Errors.sol";
 abstract contract LendingBaseVault is ERC4626 {
 
     /// -----------------------------------------------------------------------
-    /// Events
-    /// -----------------------------------------------------------------------
-
-    /// @notice Emitted when a shareholder borrows tokens form underlying protocol
-    /// @param asset The asset borrowed
-    /// @param borrower The address requesting the borrow position
-    event Borrow(IERC20 indexed asset, address borrower);
-
-    /// -----------------------------------------------------------------------
     /// Modifiers
     /// -----------------------------------------------------------------------
 
@@ -37,26 +28,26 @@ abstract contract LendingBaseVault is ERC4626 {
     /// -----------------------------------------------------------------------
 
     /// -----------------------------------------------------------------------
-    /// External functions
+    /// Internal functions
     /// -----------------------------------------------------------------------
 
     /// @notice Opens a borrowing position for the sender, using the underlying
     /// lending protocol.
     /// @param amount The amount to borrow
-    function borrow(uint256 amount) external virtual;
+    function _borrow(uint256 amount) internal virtual;
 
     /// @notice Closes a borrowing position for the sender, using the underlying
     /// lending protocol.
-    /// @param amount The amount to repay
-    function repay(uint256 amount) external virtual;
+    /// @param from The address to repay the debt from
+    function _repay(address from) internal virtual;
 
-    /// -----------------------------------------------------------------------
-    /// Internal functions
-    /// -----------------------------------------------------------------------
-
-    function _beforeWithdraw(uint256 assets, uint256 shares) internal virtual {}
+    function _beforeWithdraw(uint256 assets, address from) internal virtual {}
 
     function _afterDeposit(uint256 assets, uint256 shares) internal virtual {}
+
+    /// -----------------------------------------------------------------------
+    /// ERC4626 overrides
+    /// -----------------------------------------------------------------------
 
     function deposit(uint256 assets, address receiver) public virtual override returns (uint256 shares) {
         require(assets <= maxDeposit(receiver), "ERC4626: deposit more than max");
@@ -76,7 +67,7 @@ abstract contract LendingBaseVault is ERC4626 {
     ) public virtual override returns (uint256 shares) {
         require(assets <= maxWithdraw(owner), "ERC4626: withdraw more than max");
 
-        _beforeWithdraw(assets, shares);
+        _beforeWithdraw(assets, _msgSender());
 
         uint256 _shares = previewWithdraw(assets);
         _withdraw(_msgSender(), receiver, owner, assets, _shares);

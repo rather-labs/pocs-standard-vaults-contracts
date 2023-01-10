@@ -34,10 +34,10 @@ import { BigNumber } from 'ethers';
 
 let sushiClone: SushiStakingVault;
 
-describe.only('SushiVault', async () => { 
+describe.only('SushiVault', async () => {
   it('creates a new clone of a SushiStakingVault and checks creation Event and correct owner', async () => {
     const data: string = abiCoder.encode(['address', 'uint'], [USDC_ADDRESS, POOL_ID_USDC_WETH]);
-    const cloneAddress: string = await sushiVaultFactory.computeERC4626Address(WETH_ADDRESS);
+    const cloneAddress: string = await sushiVaultFactory.computeERC4626Address(WETH_ADDRESS, data);
     const receipt: TransactionReceipt = await waitForTx(sushiVaultFactory.createERC4626(WETH_ADDRESS, data));
 
     matchEvent(receipt, 'CreateERC4626', sushiVaultFactory, [
@@ -78,7 +78,7 @@ describe.only('SushiVault', async () => {
     await wethToken.connect(userOne).approve(sushiClone.address, MAX_UINT256);
     const userOnePreviewShares: BigNumber = await sushiClone.previewDeposit(wethBalanceUserOne);
     await waitForTx(sushiClone.connect(userOne).deposit(wethBalanceUserOne, userOneAddress));
-    
+
     const userOneShares: BigNumber = await sushiClone.balanceOf(userOneAddress);
     expect(
       userOneShares, `User expected to get around ${userOnePreviewShares} but got ${userOneShares}.`
@@ -112,7 +112,7 @@ describe.only('SushiVault', async () => {
     await wethToken.connect(userTwo).approve(sushiClone.address, MAX_UINT256);
     const userTwoPreviewShares: BigNumber = await sushiClone.previewDeposit(wethBalanceUserTwo);
     await waitForTx(sushiClone.connect(userTwo).deposit(wethBalanceUserTwo, userTwoAddress));
-    
+
     const userTwoShares: BigNumber = await sushiClone.balanceOf(userTwoAddress);
     expect(
       userTwoShares, `User expected to get around ${userTwoPreviewShares} but got ${userTwoShares}.`
