@@ -11,15 +11,7 @@ import {LendingBaseVault} from "../../layer-1-vaults/lending/base/LendingBaseVau
 import {IUniswapV2Router02} from "../../interfaces/IUniswapV2Router02.sol";
 
 import {ERC4626Factory} from "../../base/ERC4626Factory.sol";
-
-/// -----------------------------------------------------------------------
-/// Structs for params of contract
-/// -----------------------------------------------------------------------
-struct VaultParams {
-    ERC4626Factory factory;
-    ERC20 asset;
-    bytes data;
-}
+import {VaultParams, IDeltaNeutralVault} from "./IDeltaNeutralVault.sol";
 
 /// @title DeltaNeutralVault
 /// @author ffarall, LucaCevasco
@@ -28,7 +20,7 @@ struct VaultParams {
 /// standard for its use.
 /// @dev Supplies the base asset (a stablecoin) to the lending vault, uses it as collateral,
 /// and then borrows against it to invest in the staking vault
-contract DeltaNeutralVault is Ownable, Initializable, ERC4626 {
+contract DeltaNeutralVault is Ownable, Initializable, ERC4626, IDeltaNeutralVault {
     using SafeERC20 for ERC20;
     using Math for uint256;
 
