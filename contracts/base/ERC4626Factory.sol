@@ -5,7 +5,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 
-import "../../../Errors.sol";
+import "../Errors.sol";
 
 /// @title ERC4626Factory
 /// @author ffarall, LucaCevasco
@@ -47,8 +47,8 @@ abstract contract ERC4626Factory {
             )
         );
 
-        if (_vaultExists(keccak256(abi.encodePacked(implementation, asset))) revert ERC4626Factory__VaultExistsAlready({
-            vault: computeERC4626Address(asset, data)
+        if (vaultExists(asset, data)) revert ERC4626Factory__VaultExistsAlready({
+            vault: address(computeERC4626Address(asset, data))
         });
         vault = ERC4626(Clones.cloneDeterministic(implementation, salt));
 
@@ -61,7 +61,7 @@ abstract contract ERC4626Factory {
     /// a valid result regardless of whether the vault has already been deployed.
     /// @param asset The base asset used by the vault
     /// @return vault The vault corresponding to the asset
-    function computeERC4626Address(ERC20 asset, bytes calldata) external view virtual returns (ERC4626 vault) {
+    function computeERC4626Address(ERC20 asset, bytes calldata) public view virtual returns (ERC4626 vault) {
         vault = ERC4626(
             _computeCreate2Address(
                 keccak256(
@@ -79,7 +79,7 @@ abstract contract ERC4626Factory {
     /// @param data Extra data specific to implementation of this factory
     /// @return exists true if vault exists, false otherwise.
     function vaultExists(ERC20 asset, bytes calldata data) public view returns (bool exists) {
-        address vault = computeCreate2Address(asset, data);
+        address vault = address(computeERC4626Address(asset, data));
         uint32 size;
         assembly {
             size := extcodesize(vault)
