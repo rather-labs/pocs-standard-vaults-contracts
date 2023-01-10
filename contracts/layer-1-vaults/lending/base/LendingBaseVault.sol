@@ -24,8 +24,12 @@ abstract contract LendingBaseVault is ERC4626 {
     }
 
     /// -----------------------------------------------------------------------
-    /// Storage variables
+    /// Public variables
     /// -----------------------------------------------------------------------
+
+    function convertCollateralToBorrow(uint256 amount) public view virtual returns (uint256);
+
+    function convertBorrowToCollateral(uint256 amount) public view virtual returns (uint256);
 
     /// -----------------------------------------------------------------------
     /// Internal functions

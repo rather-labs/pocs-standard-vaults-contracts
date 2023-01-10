@@ -106,6 +106,54 @@ contract CompoundLendingVault is LendingBaseVault, Initializable, ICompoundLendi
     /// LendingBaseVault overrides
     /// -----------------------------------------------------------------------
 
+    function convertCollateralToBorrow(
+        uint256 amount
+    ) public view virtual override returns (uint256) {
+        (, int256 assetPriceInUSD, , , ) = assetPriceFeed.latestRoundData();
+        if (assetPriceInUSD <= 0) revert CompoundERC4626__InvalidPrice({
+            price: assetPriceInUSD,
+            priceFeed: address(assetPriceFeed)
+        });
+
+        uint256 assetDecimals = ERC20(asset()).decimals();
+        assetPriceInUSD = _scalePrice(assetPriceInUSD, assetDecimals, _DECIMALS);
+
+        (, int256 borrowAssetPriceInUSD, , , ) = borrowAssetPriceFeed.latestRoundData();
+        if (assetPriceInUSD <= 0) revert CompoundERC4626__InvalidPrice({
+            price: borrowAssetPriceInUSD,
+            priceFeed: address(borrowAssetPriceFeed)
+        });
+
+        uint256 borrowAssetDecimals = cTokenToBorrow.underlying().decimals();
+        borrowAssetPriceInUSD = _scalePrice(borrowAssetPriceInUSD, borrowAssetDecimals, _DECIMALS);
+
+        return amount * uint256(borrowAssetPriceInUSD) / uint256(assetPriceInUSD);
+    }
+
+    function convertBorrowToCollateral(
+        uint256 amount
+    ) public view virtual override returns (uint256) {
+        (, int256 assetPriceInUSD, , , ) = assetPriceFeed.latestRoundData();
+        if (assetPriceInUSD <= 0) revert CompoundERC4626__InvalidPrice({
+            price: assetPriceInUSD,
+            priceFeed: address(assetPriceFeed)
+        });
+
+        uint256 assetDecimals = ERC20(asset()).decimals();
+        assetPriceInUSD = _scalePrice(assetPriceInUSD, assetDecimals, _DECIMALS);
+
+        (, int256 borrowAssetPriceInUSD, , , ) = borrowAssetPriceFeed.latestRoundData();
+        if (assetPriceInUSD <= 0) revert CompoundERC4626__InvalidPrice({
+            price: borrowAssetPriceInUSD,
+            priceFeed: address(borrowAssetPriceFeed)
+        });
+
+        uint256 borrowAssetDecimals = cTokenToBorrow.underlying().decimals();
+        borrowAssetPriceInUSD = _scalePrice(borrowAssetPriceInUSD, borrowAssetDecimals, _DECIMALS);
+
+        return amount * uint256(assetPriceInUSD) / uint256(borrowAssetPriceInUSD);
+    }
+
     function _afterDeposit(uint256 assets, uint256 /*shares*/ ) internal virtual override {
         /// -----------------------------------------------------------------------
         /// Deposit assets into Compound
@@ -121,7 +169,7 @@ contract CompoundLendingVault is LendingBaseVault, Initializable, ICompoundLendi
         }
         
         // borrow
-        uint256 valueInAssetBorrow = _convertCollateralToBorrow(assets);
+        uint256 valueInAssetBorrow = convertCollateralToBorrow(assets);
         uint256 amountBorrow = valueInAssetBorrow * borrowRate / 1000;
         _borrow(amountBorrow);
     }
@@ -208,30 +256,6 @@ contract CompoundLendingVault is LendingBaseVault, Initializable, ICompoundLendi
     /// -----------------------------------------------------------------------
     /// Internal functions
     /// -----------------------------------------------------------------------
-
-    function _convertCollateralToBorrow(
-        uint256 amount
-    ) internal view returns (uint256) {
-        (, int256 assetPriceInUSD, , , ) = assetPriceFeed.latestRoundData();
-        if (assetPriceInUSD <= 0) revert CompoundERC4626__InvalidPrice({
-            price: assetPriceInUSD,
-            priceFeed: address(assetPriceFeed)
-        });
-
-        uint256 assetDecimals = ERC20(asset()).decimals();
-        assetPriceInUSD = _scalePrice(assetPriceInUSD, assetDecimals, _DECIMALS);
-
-        (, int256 borrowAssetPriceInUSD, , , ) = borrowAssetPriceFeed.latestRoundData();
-        if (assetPriceInUSD <= 0) revert CompoundERC4626__InvalidPrice({
-            price: borrowAssetPriceInUSD,
-            priceFeed: address(borrowAssetPriceFeed)
-        });
-
-        uint256 borrowAssetDecimals = cTokenToBorrow.underlying().decimals();
-        borrowAssetPriceInUSD = _scalePrice(borrowAssetPriceInUSD, borrowAssetDecimals, _DECIMALS);
-
-        return amount * uint256(borrowAssetPriceInUSD) / uint256(assetPriceInUSD);
-    }
 
     function _scalePrice(
         int256 price,
