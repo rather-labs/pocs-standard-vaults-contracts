@@ -44,6 +44,7 @@ export let abiCoder: AbiCoder;
 
 // Useful existing contracts
 export let wethToken: ERC20;
+export let usdcToken: ERC20;
 export let sushiRouter: IUniswapV2Router02;
 
 // SushiStakingVault
@@ -80,6 +81,7 @@ before(async () => {
 
   // Getting existing contracts
   wethToken = new ethers.Contract(WETH_ADDRESS, JSON.stringify(ERC20_ABI.abi), userOne) as ERC20;
+  usdcToken = new ethers.Contract(USDC_ADDRESS, JSON.stringify(ERC20_ABI.abi), userOne) as ERC20;
   sushiRouter = new ethers.Contract(ROUTER_ADDRESS, JSON.stringify(UNISWAP_ROUTER_ABI.abi), userOne) as IUniswapV2Router02;
 
   // Deploying SushiStakingLogic library
