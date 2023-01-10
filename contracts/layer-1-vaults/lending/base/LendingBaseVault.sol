@@ -28,26 +28,26 @@ abstract contract LendingBaseVault is ERC4626 {
     /// -----------------------------------------------------------------------
 
     /// -----------------------------------------------------------------------
-    /// External functions
+    /// Internal functions
     /// -----------------------------------------------------------------------
 
     /// @notice Opens a borrowing position for the sender, using the underlying
     /// lending protocol.
     /// @param amount The amount to borrow
-    function borrow(uint256 amount) external virtual;
+    function _borrow(uint256 amount) internal virtual;
 
     /// @notice Closes a borrowing position for the sender, using the underlying
     /// lending protocol.
     /// @param from The address to repay the debt from
-    function repay(address from) external virtual;
-
-    /// -----------------------------------------------------------------------
-    /// Internal functions
-    /// -----------------------------------------------------------------------
+    function _repay(address from) internal virtual;
 
     function _beforeWithdraw(uint256 assets, address from) internal virtual {}
 
     function _afterDeposit(uint256 assets, uint256 shares) internal virtual {}
+
+    /// -----------------------------------------------------------------------
+    /// ERC4626 overrides
+    /// -----------------------------------------------------------------------
 
     function deposit(uint256 assets, address receiver) public virtual override returns (uint256 shares) {
         require(assets <= maxDeposit(receiver), "ERC4626: deposit more than max");

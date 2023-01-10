@@ -6,6 +6,8 @@ import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.so
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+
 import {ICERC20} from "../../../interfaces/ICERC20.sol";
 import {CompoundLendingVault} from "./CompoundLendingVault.sol";
 import {IComptroller} from "../../../interfaces/IComptroller.sol";
@@ -18,12 +20,6 @@ import "../../../Errors.sol";
 /// @author ffarall, LucaCevasco
 /// @notice Factory for creating CompoundERC4626 contracts
 contract CompoundLendingVaultFactory is Ownable, ERC4626Factory {
-    /// -----------------------------------------------------------------------
-    /// Errors
-    /// -----------------------------------------------------------------------
-
-    /// @notice Thrown when trying to deploy an CompoundERC4626 vault using an asset without a cToken
-    error CompoundERC4626Factory__CTokenNonexistent();
 
     /// -----------------------------------------------------------------------
     /// Immutable params
@@ -74,11 +70,24 @@ contract CompoundLendingVaultFactory is Ownable, ERC4626Factory {
     function _initialize(ERC4626 vault, ERC20 asset, bytes memory data) internal virtual override {
         if (address(asset) == address(0)) revert InvalidAddress();
 
-        (address cEtherAddress_, uint256 borrowRate, uint256 asset2borrowAssetRate, ICERC20 asset2Borrow) = abi.decode(data, (address, uint256, uint256, ICERC20));
-        if (address(cEtherAddress_) == address(0)) revert InvalidAddress();
+        (
+            address cAssetAddress_,
+            uint256 borrowRate,
+            address asset2Borrow,
+            address assetPriceFeed,
+            address borrowAssetPriceFeed
+        ) = abi.decode(data, (address, uint256, address, address, address));
+
+        if (address(cAssetAddress_) == address(0)) revert InvalidAddress();
 
         ICompoundLendingVault(address(vault)).initialize(
-          asset, ICERC20(cEtherAddress_), comptroller, borrowRate, asset2borrowAssetRate, asset2Borrow
+            asset, 
+            ICERC20(cAssetAddress_),
+            comptroller,
+            borrowRate,
+            ICERC20(asset2Borrow),
+            AggregatorV3Interface(assetPriceFeed),
+            AggregatorV3Interface(borrowAssetPriceFeed)
         );
     }
 
