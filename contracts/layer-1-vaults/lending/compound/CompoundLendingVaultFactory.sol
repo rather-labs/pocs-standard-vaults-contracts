@@ -91,11 +91,14 @@ contract CompoundLendingVaultFactory is Ownable, ERC4626Factory {
         );
     }
 
-     function createERC4626(ERC20 asset, bytes calldata data) external virtual override returns (ERC4626 vault) {
-      // decode only last param
+     function createERC4626(ERC20 asset, bytes calldata data) external virtual override returns (ERC4626 vault) {        
+        (
+            ,
+            ,
+            address asset2Borrow,
+            ,
+        ) = abi.decode(data, (address, uint256, address, address, address));
         
-        (ICERC20 asset2Borrow) = abi.decode(data, (ICERC20));
-
         bytes32 salt = keccak256(
             abi.encodePacked(
                 implementation,
@@ -115,7 +118,12 @@ contract CompoundLendingVaultFactory is Ownable, ERC4626Factory {
     /// @param asset The base asset used by the vault
     /// @return vault The vault corresponding to the asset
     function computeERC4626Address(ERC20 asset, bytes calldata data) external view virtual override returns (ERC4626 vault) {
-      (ICERC20 asset2Borrow) = abi.decode(data, (ICERC20));
+        (
+            ,
+            ,
+            address asset2Borrow,
+            ,
+        ) = abi.decode(data, (address, uint256, address, address, address));
 
         vault = ERC4626(
             _computeCreate2Address(

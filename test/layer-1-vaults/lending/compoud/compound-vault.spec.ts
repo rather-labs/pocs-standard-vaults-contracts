@@ -9,19 +9,23 @@ import {
 import {
   compoundLendingVaultFactory,
   abiCoder,
-  WETH_ADDRESS,
-  COMPTROLLER_ADDRESS,
   CETH_ADDRESS,
+  USDC_ADDRESS,
 } from '../../../__setup.spec';
 
-describe('CompoundVault', async () => {
+const BORROW_RATE = 700;
+const ASSET_PRICE_FEED_ADDRESS = '0xF9680D99D6C9589e2a93a78A04A279e509205945';
+const BORROW_ASSET_PRICE_FEED_ADDRESS = '0xfE4A8cc5b5B2366C1B58Bea3858e81843581b2F7';
+
+describe.only('CompoundVault', async () => {
   it('creates a new clone of a CompoundLendingVault', async () => {
-    const data: string = abiCoder.encode(['address', 'address'], [COMPTROLLER_ADDRESS, CETH_ADDRESS]);
-    const cloneAddress: string = await compoundLendingVaultFactory.computeERC4626Address(WETH_ADDRESS);
-    const receipt: TransactionReceipt = await waitForTx(compoundLendingVaultFactory.createERC4626(WETH_ADDRESS, data));
+    const data: string = abiCoder.encode(['address', 'uint256', 'address', 'address', 'address'], [USDC_ADDRESS, BORROW_RATE, CETH_ADDRESS, ASSET_PRICE_FEED_ADDRESS, BORROW_ASSET_PRICE_FEED_ADDRESS]);
+
+    const cloneAddress: string = await compoundLendingVaultFactory.computeERC4626Address(USDC_ADDRESS, data);
+    const receipt: TransactionReceipt = await waitForTx(compoundLendingVaultFactory.createERC4626(USDC_ADDRESS, data));
 
     matchEvent(receipt, 'CreateERC4626', compoundLendingVaultFactory, [
-      WETH_ADDRESS,
+      USDC_ADDRESS,
       cloneAddress
     ]);
   });

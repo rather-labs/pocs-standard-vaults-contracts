@@ -37,7 +37,7 @@ let sushiClone: SushiStakingVault;
 describe.only('SushiVault', async () => {
   it('creates a new clone of a SushiStakingVault and checks creation Event and correct owner', async () => {
     const data: string = abiCoder.encode(['address', 'uint'], [USDC_ADDRESS, POOL_ID_USDC_WETH]);
-    const cloneAddress: string = await sushiVaultFactory.computeERC4626Address(WETH_ADDRESS);
+    const cloneAddress: string = await sushiVaultFactory.computeERC4626Address(WETH_ADDRESS, data);
     const receipt: TransactionReceipt = await waitForTx(sushiVaultFactory.createERC4626(WETH_ADDRESS, data));
 
     matchEvent(receipt, 'CreateERC4626', sushiVaultFactory, [
