@@ -8,6 +8,7 @@ import {IInterestRateModel} from "./IInterestRateModel.sol";
 abstract contract ICERC20 is ERC20 {
     function mint(uint256 underlyingAmount) external virtual returns (uint256);
 
+    // function mintForSelfAndEnterMarket(uint256 underlyingAmount) external virtual returns (uint256);
     function mintForSelfAndEnterMarket(uint256 underlyingAmount) external virtual;
 
     function underlying() external view virtual returns (ERC20);

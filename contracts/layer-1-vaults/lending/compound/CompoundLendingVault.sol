@@ -138,10 +138,18 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         uint256 amount
     ) public view virtual override returns (uint256) {
         (, int256 assetPriceInUSD, , , ) = assetPriceFeed.latestRoundData();
+        // if (assetPriceInUSD <= 0) revert CompoundERC4626__InvalidPrice({
+        //     price: assetPriceInUSD,
+        //     priceFeed: address(assetPriceFeed)
+        // });
         uint256 assetDecimals = ERC20(asset()).decimals();
         assetPriceInUSD = _scalePrice(assetPriceInUSD, assetDecimals, _DECIMALS);
 
         (, int256 borrowAssetPriceInUSD, , , ) = borrowAssetPriceFeed.latestRoundData();
+        // if (assetPriceInUSD <= 0) revert CompoundERC4626__InvalidPrice({
+        //     price: borrowAssetPriceInUSD,
+        //     priceFeed: address(borrowAssetPriceFeed)
+        // });
         uint256 borrowAssetDecimals = cTokenToBorrow.underlying().decimals();
         borrowAssetPriceInUSD = _scalePrice(borrowAssetPriceInUSD, borrowAssetDecimals, _DECIMALS);
 
@@ -157,6 +165,10 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         underAsset.safeApprove(address(cToken), assets);
 
         // deposit into cToken
+        // uint256 errorCode = cToken.mintForSelfAndEnterMarket(assets);
+        // if (errorCode != _NO_ERROR) {
+        //     revert CompoundERC4626__CompoundError(errorCode);
+        // }
         cToken.mintForSelfAndEnterMarket(assets);
         
         // borrow
@@ -181,12 +193,12 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
     /// @notice Borrow the given amount of asset from Compound
     function _borrow(uint256 amount) internal override {
         // Check account can borrow
-        (uint256 ret, uint256 liquidity, uint256 shortfall) = comptroller.getAccountLiquidity(address(this));
-        require(ret == 0, "COMPOUND_BORROWER: getAccountLiquidity failed.");
-        require(shortfall == 0, "COMPOUND_BORROWER: Account underwater");
-        require(liquidity > 0, "COMPOUND_BORROWER: Account doesn't have liquidity");
+        // (uint256 ret, uint256 liquidity, uint256 shortfall) = comptroller.getAccountLiquidity(address(this));
+        // require(ret == 0, "COMPOUND_BORROWER: getAccountLiquidity failed.");
+        // require(shortfall == 0, "COMPOUND_BORROWER: Account underwater");
+        // require(liquidity > 0, "COMPOUND_BORROWER: Account doesn't have liquidity");
 
-        ret = ICERC20(address(cTokenToBorrow)).borrow(amount);
+        uint256 ret = ICERC20(address(cTokenToBorrow)).borrow(amount);
         require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
 
         emit Borrow(amount);
@@ -216,6 +228,20 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
     function totalAssets() public view virtual override returns (uint256) {
         return cToken.viewUnderlyingBalanceOf(address(this));
     }
+
+    // function maxDeposit(address) public view override returns (uint256) {
+    //     if (comptroller.mintGuardianPaused(cToken)) {
+    //         return 0;
+    //     }
+    //     return type(uint256).max;
+    // }
+
+    // function maxMint(address) public view override returns (uint256) {
+    //     if (comptroller.mintGuardianPaused(cToken)) {
+    //         return 0;
+    //     }
+    //     return type(uint256).max;
+    // }
 
     function maxWithdraw(address owner) public view override returns (uint256) {
         uint256 cash = cToken.getCash();
