@@ -40,14 +40,14 @@ contract DeltaNeutralVaultFactory is Ownable, ERC4626Factory {
             data, 
             (
                 address, address, bytes, // Lending Vault
-                address, address, bytes, // Staking Vault
+                address, address, bytes // Staking Vault
             )
         );
 
         // Getting and pair
         IDeltaNeutralVault(address(vault)).initialize(
-            VaultParams(lendingFactory, lendingAsset, lendingData),
-            VaultParams(stakingFactory, stakingAsset, stakingData),
+            VaultParams(ERC4626Factory(lendingFactory), ERC20(lendingAsset), lendingData),
+            VaultParams(ERC4626Factory(stakingFactory), ERC20(stakingAsset), stakingData),
             msg.sender
         );
     }

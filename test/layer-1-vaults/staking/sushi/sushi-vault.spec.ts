@@ -34,7 +34,7 @@ import { BigNumber } from 'ethers';
 
 let sushiClone: SushiStakingVault;
 
-describe.only('SushiVault', async () => {
+describe('SushiVault', async () => {
   it('creates a new clone of a SushiStakingVault and checks creation Event and correct owner', async () => {
     const data: string = abiCoder.encode(['address', 'uint'], [USDC_ADDRESS, POOL_ID_USDC_WETH]);
     const cloneAddress: string = await sushiVaultFactory.computeERC4626Address(WETH_ADDRESS, data);
