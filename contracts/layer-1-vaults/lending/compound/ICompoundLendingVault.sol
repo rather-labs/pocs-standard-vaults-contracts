@@ -15,6 +15,7 @@ interface ICompoundLendingVault {
         uint256 borrowRate_, 
         ICERC20 cTokenToBorrow_,
         AggregatorV3Interface assetPriceFeed_, 
-        AggregatorV3Interface borrowAssetPriceFeed_
+        AggregatorV3Interface borrowAssetPriceFeed_,
+        address deployer
     ) external;
 }

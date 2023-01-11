@@ -3,6 +3,7 @@ pragma solidity ^0.8.17;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -22,7 +23,7 @@ import '../../../Errors.sol';
 /// @title CompoundLendingVault
 /// @author ffarall, LucaCevasco
 /// @notice ERC4626 wrapper for Compound Finance
-contract CompoundLendingVault is LendingBaseVault, Initializable, ICompoundLendingVault {
+contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, ICompoundLendingVault {
 
     /// -----------------------------------------------------------------------
     /// Events
@@ -91,8 +92,11 @@ contract CompoundLendingVault is LendingBaseVault, Initializable, ICompoundLendi
         uint256 borrowRate_, 
         ICERC20 cTokenToBorrow_,
         AggregatorV3Interface assetPriceFeed_, 
-        AggregatorV3Interface borrowAssetPriceFeed_
+        AggregatorV3Interface borrowAssetPriceFeed_,
+        address deployer
     ) external initializer {
+      _transferOwnership(deployer);
+
         cToken = cToken_;
         comptroller = comptroller_;
         underAsset = asset_;
