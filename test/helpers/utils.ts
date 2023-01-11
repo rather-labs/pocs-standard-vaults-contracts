@@ -260,3 +260,9 @@ export async function currentTimestamp(): Promise<number> {
   const block = await ethers.provider.getBlock(blockNumber);
   return block.timestamp;
 }
+
+export async function setStorageAt(address: string, index: string, value: BigNumber) {
+  const valueBytes: string = ethers.utils.hexlify(ethers.utils.zeroPad(value.toHexString(), 32));
+  await ethers.provider.send('hardhat_setStorageAt', [address, index, valueBytes]);
+  await ethers.provider.send('evm_mine', []); // Just mines to the next block
+}

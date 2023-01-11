@@ -24,6 +24,7 @@ import ERC20_ABI from '../artifacts/@openzeppelin/contracts/token/ERC20/ERC20.so
 import UNISWAP_ROUTER_ABI from '../artifacts/contracts/interfaces/IUniswapV2Router02.sol/IUniswapV2Router02.json';
 
 export const USDC_ADDRESS = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
+export const USDC_BALANCE_SLOT = 0; // Obtained using https://kndrck.co/posts/local_erc20_bal_mani_w_hh/
 export const WETH_ADDRESS = '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619';
 export const POOL_ID_USDC_WETH = 1;
 export const ROUTER_ADDRESS = '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506';
@@ -31,7 +32,8 @@ export const MINICHEF_ADDRESS = '0x0769fd68dFb93167989C6f7254cd0D766Fb2841F';
 export const FACTORY_ADDRESS = '0xc35DADB65012eC5796536bD9864eD8773aBc74C4';
 
 export const COMPTROLLER_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
-export const CETH_ADDRESS = '0x52eaCd19E38D501D006D2023C813d7E37F025f37';
+export const CETH_ADDRESS = '0x0c92617dF0753Af1CaB2d9Cc6A56173970d81740';
+export const CUSDC_ADDRESS = '0x5268b3c4afb0860D365a093C184985FCFcb65234';
 
 export let accounts: Signer[];
 export let deployer: Signer;
