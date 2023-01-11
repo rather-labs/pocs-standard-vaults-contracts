@@ -33,7 +33,8 @@ abstract contract ICERC20 is ERC20 {
 
     function initialExchangeRateMantissa() external view virtual returns (uint256);
 
-    function borrow(uint256) external virtual returns (uint256);
+    // function borrow(uint256) external virtual returns (uint256);
+    function borrow(uint256) external virtual;
 
     function borrowRatePerBlock() external virtual  view returns (uint256);
 

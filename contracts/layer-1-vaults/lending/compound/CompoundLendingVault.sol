@@ -198,8 +198,9 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         // require(shortfall == 0, "COMPOUND_BORROWER: Account underwater");
         // require(liquidity > 0, "COMPOUND_BORROWER: Account doesn't have liquidity");
 
-        uint256 ret = ICERC20(address(cTokenToBorrow)).borrow(amount);
-        require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
+        // uint256 ret = ICERC20(address(cTokenToBorrow)).borrow(amount);
+        // require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
+        ICERC20(address(cTokenToBorrow)).borrow(amount);
 
         emit Borrow(amount);
     }
