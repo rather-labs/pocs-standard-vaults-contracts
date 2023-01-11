@@ -11,8 +11,7 @@ interface ICompoundLendingVault {
     function initialize(
         ERC20 asset_, 
         ICERC20 cToken_, 
-        IComptroller comptroller_, 
-        uint256 borrowRate_, 
+        IComptroller comptroller_,
         ICERC20 cTokenToBorrow_,
         AggregatorV3Interface assetPriceFeed_, 
         AggregatorV3Interface borrowAssetPriceFeed_,

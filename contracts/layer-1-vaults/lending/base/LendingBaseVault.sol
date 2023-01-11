@@ -57,12 +57,19 @@ abstract contract LendingBaseVault is ERC4626 {
     function deposit(uint256 assets, address receiver) public virtual override returns (uint256 shares) {
         require(assets <= maxDeposit(receiver), "ERC4626: deposit more than max");
 
-        uint256 _shares = previewDeposit(assets);
-        _deposit(_msgSender(), receiver, assets, _shares);
+        shares = previewDeposit(assets);
+        _deposit(_msgSender(), receiver, assets, shares);
 
-        _afterDeposit(assets, _shares);
+        _afterDeposit(assets, shares);
+    }
 
-        return _shares;
+    function mint(uint256 shares, address receiver) public virtual override returns (uint256 assets) {
+        require(shares <= maxMint(receiver), "ERC4626: mint more than max");
+
+        assets = previewMint(shares);
+        _deposit(_msgSender(), receiver, assets, shares);
+
+        _afterDeposit(assets, shares);
     }
 
     function withdraw(
@@ -74,10 +81,21 @@ abstract contract LendingBaseVault is ERC4626 {
 
         _beforeWithdraw(assets, _msgSender());
 
-        uint256 _shares = previewWithdraw(assets);
-        _withdraw(_msgSender(), receiver, owner, assets, _shares);
+        shares = previewWithdraw(assets);
+        _withdraw(_msgSender(), receiver, owner, assets, shares);
+    }
 
-        return _shares;
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) public virtual override returns (uint256 assets) {
+        require(shares <= maxRedeem(owner), "ERC4626: redeem more than max");
+
+        _beforeWithdraw(assets, _msgSender());
+
+        assets = previewRedeem(shares);
+        _withdraw(_msgSender(), receiver, owner, assets, shares);
     }
 
     function _deposit(

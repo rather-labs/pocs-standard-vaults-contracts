@@ -63,11 +63,6 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
     /// @notice The Compound comptroller contract
     IComptroller public comptroller;
 
-    /// @notice The ratio of the value of the asset used as collateral vs the
-    /// value of what is to be borrowed, in percentage terms with one decimal
-    // (for 75.5%, borrowRate = 755).
-    uint256 public borrowRate;
-
     /// @notice The Compound cToken contract for the borrowed asset
     ICERC20 public cTokenToBorrow;
 
@@ -88,8 +83,7 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
     function initialize(
         ERC20 asset_, 
         ICERC20 cToken_, 
-        IComptroller comptroller_, 
-        uint256 borrowRate_, 
+        IComptroller comptroller_,
         ICERC20 cTokenToBorrow_,
         AggregatorV3Interface assetPriceFeed_, 
         AggregatorV3Interface borrowAssetPriceFeed_,
@@ -100,10 +94,15 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         cToken = cToken_;
         comptroller = comptroller_;
         underAsset = asset_;
-        borrowRate = borrowRate_;
         cTokenToBorrow = cTokenToBorrow_;
         assetPriceFeed = assetPriceFeed_;
         borrowAssetPriceFeed = borrowAssetPriceFeed_;
+
+        // enter market to use supplied token as collateral
+        address[] memory cTokensAux = new address[](1);
+        cTokensAux[0] = address(cToken);
+        uint256[] memory errors = comptroller.enterMarkets(cTokensAux);
+        require(errors[0] == 0, "COMPOUND_BORROWER: enterMarkets failed");
     }
 
     /// -----------------------------------------------------------------------
@@ -165,15 +164,18 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         underAsset.safeApprove(address(cToken), assets);
 
         // deposit into cToken
-        // uint256 errorCode = cToken.mintForSelfAndEnterMarket(assets);
-        // if (errorCode != _NO_ERROR) {
-        //     revert CompoundERC4626__CompoundError(errorCode);
-        // }
-        cToken.mintForSelfAndEnterMarket(assets);
+        uint256 errorCode = cToken.mint(assets);
+        if (errorCode != _NO_ERROR) {
+            revert CompoundERC4626__CompoundError(errorCode);
+        }
         
         // borrow
         uint256 valueInAssetBorrow = convertCollateralToBorrow(assets);
-        uint256 amountBorrow = valueInAssetBorrow * borrowRate / 1000;
+        (bool isListed, uint256 colFactor, ) = comptroller.markets(address(cToken));
+        if (!isListed) revert CompoundERC4626__MarketNotListed(address(cToken));
+
+        colFactor = colFactor * 70 / 100;
+        uint256 amountBorrow = valueInAssetBorrow * colFactor / 10**18;
         _borrow(amountBorrow);
     }
 
@@ -193,26 +195,25 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
     /// @notice Borrow the given amount of asset from Compound
     function _borrow(uint256 amount) internal override {
         // Check account can borrow
-        // (uint256 ret, uint256 liquidity, uint256 shortfall) = comptroller.getAccountLiquidity(address(this));
-        // require(ret == 0, "COMPOUND_BORROWER: getAccountLiquidity failed.");
-        // require(shortfall == 0, "COMPOUND_BORROWER: Account underwater");
-        // require(liquidity > 0, "COMPOUND_BORROWER: Account doesn't have liquidity");
+        (uint256 ret, uint256 liquidity, uint256 shortfall) = comptroller.getAccountLiquidity(address(this));
+        require(ret == 0, "COMPOUND_BORROWER: getAccountLiquidity failed.");
+        require(shortfall == 0, "COMPOUND_BORROWER: Account underwater");
+        require(liquidity > 0, "COMPOUND_BORROWER: Account doesn't have liquidity");
 
-        // uint256 ret = ICERC20(address(cTokenToBorrow)).borrow(amount);
-        // require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
-        ICERC20(address(cTokenToBorrow)).borrow(amount);
+        ret = cTokenToBorrow.borrow(amount);
+        require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
 
         emit Borrow(amount);
     }
 
-    /// @notice Repay the given amount of asset to Compound
+    /// TODO @notice Repay the given amount of asset to Compound
     function _repay(address from) internal override {
-        uint256 amountToRepay = ICERC20(address(cTokenToBorrow)).borrowBalanceCurrent(from);
+        uint256 amountToRepay = cTokenToBorrow.borrowBalanceCurrent(address(this));
         // Approve tokens to Compound contract
-        IERC20(address(cTokenToBorrow)).approve(address(cTokenToBorrow), amountToRepay);
+        cTokenToBorrow.approve(address(cTokenToBorrow), amountToRepay);
 
         // Repay given amount to borrowed contract
-        uint256 ret = ICERC20(address(cTokenToBorrow)).repayBorrow(amountToRepay);
+        uint256 ret = cTokenToBorrow.repayBorrow(amountToRepay);
         require(ret == 0, "COMPOUND_BORROWER: cErc20.repay failed");
 
         emit Repay(amountToRepay);
@@ -230,19 +231,19 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         return cToken.viewUnderlyingBalanceOf(address(this));
     }
 
-    // function maxDeposit(address) public view override returns (uint256) {
-    //     if (comptroller.mintGuardianPaused(cToken)) {
-    //         return 0;
-    //     }
-    //     return type(uint256).max;
-    // }
+    function maxDeposit(address) public view override returns (uint256) {
+        if (comptroller.mintGuardianPaused(cToken)) {
+            return 0;
+        }
+        return type(uint256).max;
+    }
 
-    // function maxMint(address) public view override returns (uint256) {
-    //     if (comptroller.mintGuardianPaused(cToken)) {
-    //         return 0;
-    //     }
-    //     return type(uint256).max;
-    // }
+    function maxMint(address) public view override returns (uint256) {
+        if (comptroller.mintGuardianPaused(cToken)) {
+            return 0;
+        }
+        return type(uint256).max;
+    }
 
     function maxWithdraw(address owner) public view override returns (uint256) {
         uint256 cash = cToken.getCash();

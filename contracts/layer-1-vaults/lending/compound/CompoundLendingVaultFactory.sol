@@ -48,7 +48,7 @@ contract CompoundLendingVaultFactory is Ownable, ERC4626Factory {
         _cEtherAddress = cEtherAddress_;
 
         // initialize underlyingToCToken
-        ICERC20[] memory allCTokens = comptroller_.getAlliTokens();
+        ICERC20[] memory allCTokens = comptroller_.getAllMarkets();        
         uint256 numCTokens = allCTokens.length;
         ICERC20 cToken;
         for (uint256 i; i < numCTokens;) {
@@ -72,12 +72,11 @@ contract CompoundLendingVaultFactory is Ownable, ERC4626Factory {
 
         (
             address cAssetAddress_,
-            uint256 borrowRate,
             address asset2Borrow,
             address assetPriceFeed,
             address borrowAssetPriceFeed,
             address deployer
-        ) = abi.decode(data, (address, uint256, address, address, address, address));
+        ) = abi.decode(data, (address, address, address, address, address));
 
         if (address(cAssetAddress_) == address(0)) revert InvalidAddress();
 
@@ -85,7 +84,6 @@ contract CompoundLendingVaultFactory is Ownable, ERC4626Factory {
             asset, 
             ICERC20(cAssetAddress_),
             comptroller,
-            borrowRate,
             ICERC20(asset2Borrow),
             AggregatorV3Interface(assetPriceFeed),
             AggregatorV3Interface(borrowAssetPriceFeed),
@@ -96,11 +94,10 @@ contract CompoundLendingVaultFactory is Ownable, ERC4626Factory {
      function createERC4626(ERC20 asset, bytes calldata data) external virtual override returns (ERC4626 vault) {        
         (
             ,
-            ,
             address asset2Borrow,
             ,
             ,
-        ) = abi.decode(data, (address, uint256, address, address, address, address));
+        ) = abi.decode(data, (address, address, address, address, address));
         
         bytes32 salt = keccak256(
             abi.encodePacked(
@@ -123,11 +120,10 @@ contract CompoundLendingVaultFactory is Ownable, ERC4626Factory {
     function computeERC4626Address(ERC20 asset, bytes memory data) public view virtual override returns (ERC4626 vault) {
         (
             ,
-            ,
             address asset2Borrow,
             ,
             ,
-        ) = abi.decode(data, (address, uint256, address, address, address, address));
+        ) = abi.decode(data, (address, address, address, address, address));
 
         vault = ERC4626(
             _computeCreate2Address(
