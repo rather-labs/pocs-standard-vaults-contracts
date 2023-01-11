@@ -137,12 +137,12 @@ contract DeltaNeutralVault is Ownable, Initializable, ERC4626, IDeltaNeutralVaul
     /// @inheritdoc ERC4626
     function _convertToShares(uint256 assets, Math.Rounding) internal view virtual override returns (uint256) {
         // TODO this is an oversimplified estimation
-        lendingVault.convertToShares(assets);
+        return lendingVault.convertToShares(assets);
     }
 
     /// @inheritdoc ERC4626
     function _convertToAssets(uint256 shares, Math.Rounding) internal view virtual override returns (uint256) {
         // TODO this is an oversimiplified estimation
-        lendingVault.convertToAssets(shares);
+        return lendingVault.convertToAssets(shares);
     }
 }
