@@ -49,12 +49,11 @@
     "prettier-plugin-solidity": "^1.0.0-dev.23",
     "sol-merger": "^3.1.0",
     "solhint": "^3.3.6",
-    "solmate": "^6.6.1"
+    "solmate": "^6.6.1",
+    "slot20": "^0.0.3"
   },
   "dependencies": {
     "@typescript-eslint/eslint-plugin": "^5.47.0",
-    "node-fetch": "^3.2.4",
-    "operator-filter-registry": "^1.3.1",
-    "web3": "^1.7.5"
+    "node-fetch": "^3.2.4"
   }
 }
