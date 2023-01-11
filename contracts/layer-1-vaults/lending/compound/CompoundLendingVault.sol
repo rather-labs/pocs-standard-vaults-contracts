@@ -17,8 +17,8 @@ import {LibCompound} from "./lib/LibCompound.sol";
 import {IComptroller} from "../../../interfaces/IComptroller.sol";
 
 import {LendingBaseVault} from "../base/LendingBaseVault.sol";
-import {ICompoundLendingVault} from './ICompoundLendingVault.sol';
-import '../../../Errors.sol';
+import {ICompoundLendingVault} from "./ICompoundLendingVault.sol";
+import "../../../Errors.sol";
 
 /// @title CompoundLendingVault
 /// @author ffarall, LucaCevasco
@@ -83,7 +83,7 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
 
     constructor()
         ERC4626(IERC20(address(0)))
-        ERC20('CompoundLendingVault', 'CLV') { }
+        ERC20("CompoundLendingVault", "CLV") { }
 
     function initialize(
         ERC20 asset_, 
@@ -138,20 +138,10 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         uint256 amount
     ) public view virtual override returns (uint256) {
         (, int256 assetPriceInUSD, , , ) = assetPriceFeed.latestRoundData();
-        if (assetPriceInUSD <= 0) revert CompoundERC4626__InvalidPrice({
-            price: assetPriceInUSD,
-            priceFeed: address(assetPriceFeed)
-        });
-
         uint256 assetDecimals = ERC20(asset()).decimals();
         assetPriceInUSD = _scalePrice(assetPriceInUSD, assetDecimals, _DECIMALS);
 
         (, int256 borrowAssetPriceInUSD, , , ) = borrowAssetPriceFeed.latestRoundData();
-        if (assetPriceInUSD <= 0) revert CompoundERC4626__InvalidPrice({
-            price: borrowAssetPriceInUSD,
-            priceFeed: address(borrowAssetPriceFeed)
-        });
-
         uint256 borrowAssetDecimals = cTokenToBorrow.underlying().decimals();
         borrowAssetPriceInUSD = _scalePrice(borrowAssetPriceInUSD, borrowAssetDecimals, _DECIMALS);
 
@@ -167,10 +157,7 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         underAsset.safeApprove(address(cToken), assets);
 
         // deposit into cToken
-        uint256 errorCode = cToken.mintForSelfAndEnterMarket(assets);
-        if (errorCode != _NO_ERROR) {
-            revert CompoundERC4626__CompoundError(errorCode);
-        }
+        cToken.mintForSelfAndEnterMarket(assets);
         
         // borrow
         uint256 valueInAssetBorrow = convertCollateralToBorrow(assets);
@@ -228,20 +215,6 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
 
     function totalAssets() public view virtual override returns (uint256) {
         return cToken.viewUnderlyingBalanceOf(address(this));
-    }
-
-    function maxDeposit(address) public view override returns (uint256) {
-        if (comptroller.mintGuardianPaused(cToken)) {
-            return 0;
-        }
-        return type(uint256).max;
-    }
-
-    function maxMint(address) public view override returns (uint256) {
-        if (comptroller.mintGuardianPaused(cToken)) {
-            return 0;
-        }
-        return type(uint256).max;
     }
 
     function maxWithdraw(address owner) public view override returns (uint256) {

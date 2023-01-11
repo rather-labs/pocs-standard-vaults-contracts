@@ -32,7 +32,8 @@ library LibCompound {
         uint256 interestAccumulated =
             (borrowRateMantissa * (block.number - accrualBlockNumberPrior)).mulWadDown(borrowsPrior);
 
-        uint256 totalReserves = cToken.reserveFactorMantissa().mulWadDown(interestAccumulated) + reservesPrior;
+        // uint256 totalReserves = cToken.reserveFactorMantissa().mulWadDown(interestAccumulated) + reservesPrior;
+        uint256 totalReserves = reservesPrior;
         uint256 totalBorrows = interestAccumulated + borrowsPrior;
         uint256 totalSupply = cToken.totalSupply();
 
