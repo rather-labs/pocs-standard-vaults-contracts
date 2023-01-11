@@ -74,9 +74,6 @@ describe.only('CompoundVault', async () => {
     // Depositing in Compound vault
     await usdcToken.connect(userOne).approve(compoundClone.address, MAX_UINT256);
     const userOnePreviewShares: BigNumber = await compoundClone.previewDeposit(usdcBalanceUserOne);
-    await compoundClone.connect(userOne).deposit(usdcBalanceUserOne, userOneAddress, 
-      { gasLimit: 1_000_000 }
-    );
     await waitForTx(compoundClone.connect(userOne).deposit(usdcBalanceUserOne, userOneAddress));
 
     const userOneShares: BigNumber = await compoundClone.balanceOf(userOneAddress);
