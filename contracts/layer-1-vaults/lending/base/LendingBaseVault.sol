@@ -5,7 +5,6 @@ import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.so
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../../../Errors.sol";
-import "hardhat/console.sol";
 
 /// @title LendingBaseVault
 /// @author ffarall, LucaCevasco

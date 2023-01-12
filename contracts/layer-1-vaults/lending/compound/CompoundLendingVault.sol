@@ -20,7 +20,6 @@ import {IComptroller} from "../../../interfaces/IComptroller.sol";
 import {LendingBaseVault} from "../base/LendingBaseVault.sol";
 import {ICompoundLendingVault} from "./ICompoundLendingVault.sol";
 import "../../../Errors.sol";
-import "hardhat/console.sol";
 
 /// @title CompoundLendingVault
 /// @author ffarall, LucaCevasco
