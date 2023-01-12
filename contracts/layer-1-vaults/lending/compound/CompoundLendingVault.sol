@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -19,6 +20,7 @@ import {IComptroller} from "../../../interfaces/IComptroller.sol";
 import {LendingBaseVault} from "../base/LendingBaseVault.sol";
 import {ICompoundLendingVault} from "./ICompoundLendingVault.sol";
 import "../../../Errors.sol";
+import "hardhat/console.sol";
 
 /// @title CompoundLendingVault
 /// @author ffarall, LucaCevasco
@@ -103,6 +105,9 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         cTokensAux[0] = address(cToken);
         uint256[] memory errors = comptroller.enterMarkets(cTokensAux);
         require(errors[0] == 0, "COMPOUND_BORROWER: enterMarkets failed");
+
+        // pre-approve ERC20 transfers
+        ERC20(cTokenToBorrow.underlying()).safeApprove(address(cTokenToBorrow), 2**256 - 1);
     }
 
     /// -----------------------------------------------------------------------
@@ -118,7 +123,7 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
             priceFeed: address(assetPriceFeed)
         });
 
-        uint256 assetDecimals = ERC20(asset()).decimals();
+        uint256 assetDecimals = assetPriceFeed.decimals();
         assetPriceInUSD = _scalePrice(assetPriceInUSD, assetDecimals, _DECIMALS);
 
         (, int256 borrowAssetPriceInUSD, , , ) = borrowAssetPriceFeed.latestRoundData();
@@ -127,7 +132,7 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
             priceFeed: address(borrowAssetPriceFeed)
         });
 
-        uint256 borrowAssetDecimals = cTokenToBorrow.underlying().decimals();
+        uint256 borrowAssetDecimals = borrowAssetPriceFeed.decimals();
         borrowAssetPriceInUSD = _scalePrice(borrowAssetPriceInUSD, borrowAssetDecimals, _DECIMALS);
 
         return amount * uint256(borrowAssetPriceInUSD) / uint256(assetPriceInUSD);
@@ -141,7 +146,7 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         //     price: assetPriceInUSD,
         //     priceFeed: address(assetPriceFeed)
         // });
-        uint256 assetDecimals = ERC20(asset()).decimals();
+        uint256 assetDecimals = assetPriceFeed.decimals();
         assetPriceInUSD = _scalePrice(assetPriceInUSD, assetDecimals, _DECIMALS);
 
         (, int256 borrowAssetPriceInUSD, , , ) = borrowAssetPriceFeed.latestRoundData();
@@ -149,13 +154,18 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         //     price: borrowAssetPriceInUSD,
         //     priceFeed: address(borrowAssetPriceFeed)
         // });
-        uint256 borrowAssetDecimals = cTokenToBorrow.underlying().decimals();
+        uint256 borrowAssetDecimals = borrowAssetPriceFeed.decimals();
         borrowAssetPriceInUSD = _scalePrice(borrowAssetPriceInUSD, borrowAssetDecimals, _DECIMALS);
 
         return amount * uint256(assetPriceInUSD) / uint256(borrowAssetPriceInUSD);
     }
 
-    function _afterDeposit(uint256 assets, uint256 /*shares*/ ) internal virtual override {
+    function _afterDeposit(
+        address /* caller */,
+        address receiver,
+        uint256 assets,
+        uint256 /* shares */
+    ) internal virtual override {
         /// -----------------------------------------------------------------------
         /// Deposit assets into Compound
         /// -----------------------------------------------------------------------
@@ -174,26 +184,32 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         (bool isListed, uint256 colFactor, ) = comptroller.markets(address(cToken));
         if (!isListed) revert CompoundERC4626__MarketNotListed(address(cToken));
 
-        colFactor = colFactor * 70 / 100;
+        colFactor = colFactor * 90 / 100;
         uint256 amountBorrow = valueInAssetBorrow * colFactor / 10**18;
-        _borrow(amountBorrow);
+        _borrow(receiver, amountBorrow);
     }
 
-    function _beforeWithdraw(uint256 assets, address from) internal virtual override {
+    function _beforeWithdraw(
+        address caller,
+        address /* receiver */,
+        address /* owner*/,
+        uint256 assets,
+        uint256 /* shares*/
+    ) internal virtual override {
         /// -----------------------------------------------------------------------
         /// Withdraw assets from Compound
         /// -----------------------------------------------------------------------
 
-        _repay(from);
+        _repay(caller);
 
-        uint256 errorCode = cToken.redeemUnderlying(from, assets);
+        uint256 errorCode = cToken.redeemUnderlying(assets);
         if (errorCode != _NO_ERROR) {
             revert CompoundERC4626__CompoundError(errorCode);
         }
     }
 
     /// @notice Borrow the given amount of asset from Compound
-    function _borrow(uint256 amount) internal override {
+    function _borrow(address holder, uint256 amount) internal override {
         // Check account can borrow
         (uint256 ret, uint256 liquidity, uint256 shortfall) = comptroller.getAccountLiquidity(address(this));
         require(ret == 0, "COMPOUND_BORROWER: getAccountLiquidity failed.");
@@ -203,19 +219,19 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         ret = cTokenToBorrow.borrow(amount);
         require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
 
+        _holdersLoans[holder] = amount;
         emit Borrow(amount);
     }
 
     /// TODO @notice Repay the given amount of asset to Compound
-    function _repay(address from) internal override {
-        uint256 amountToRepay = cTokenToBorrow.borrowBalanceCurrent(address(this));
-        // Approve tokens to Compound contract
-        cTokenToBorrow.approve(address(cTokenToBorrow), amountToRepay);
+    function _repay(address holder) internal override {
+        uint256 amountToRepay = _holdersLoans[holder];
 
         // Repay given amount to borrowed contract
         uint256 ret = cTokenToBorrow.repayBorrow(amountToRepay);
         require(ret == 0, "COMPOUND_BORROWER: cErc20.repay failed");
 
+        _holdersLoans[holder] = 0;
         emit Repay(amountToRepay);
     }
 
@@ -256,6 +272,18 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         uint256 cashInShares = convertToShares(cash);
         uint256 shareBalance = balanceOf(owner);
         return cashInShares < shareBalance ? cashInShares : shareBalance;
+    }
+
+    function _convertToShares(uint256 assets, Math.Rounding /* rounding */) internal view virtual override returns (uint256 shares) {
+        uint256 exchangeRate = cToken.exchangeRateStored();
+        uint256 scaleUp = 10 ** (10 + ERC20(cToken.underlying()).decimals());
+        shares = assets * scaleUp / exchangeRate;
+    }
+
+    function _convertToAssets(uint256 shares, Math.Rounding /* rounding */) internal view virtual override returns (uint256 assets) {
+        uint256 exchangeRate = cToken.exchangeRateStored();
+        uint256 scaleDown = 10 ** (10 + ERC20(cToken.underlying()).decimals());
+        assets = shares * exchangeRate / scaleDown;
     }
 
     /// -----------------------------------------------------------------------

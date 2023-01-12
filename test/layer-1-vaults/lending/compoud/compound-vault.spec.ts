@@ -14,7 +14,7 @@ import { MAX_UINT256 } from '../../../helpers/constants';
 import {
   compoundLendingVaultFactory,
   abiCoder,
-  CETH_ADDRESS,
+  CWETH_ADDRESS,
   USDC_ADDRESS,
   USDC_BALANCE_SLOT,
   userOne,
@@ -25,6 +25,9 @@ import {
   CUSDC_ADDRESS,
   userTwoAddress,
   userTwo,
+  cWethToken,
+  WETH_ADDRESS,
+  WETH_BALANCE_SLOT,
 } from '../../../__setup.spec';
 import COMPOUND_CLONE from '../../../../artifacts/contracts/layer-1-vaults/lending/compound/CompoundLendingVault.sol/CompoundLendingVault.json';
 import { CompoundLendingVault } from '../../../../typechain-types/contracts/layer-1-vaults/lending/compound/CompoundLendingVault';
@@ -35,9 +38,9 @@ const BORROW_ASSET_PRICE_FEED_ADDRESS = '0xfE4A8cc5b5B2366C1B58Bea3858e81843581b
 
 let compoundClone: CompoundLendingVault;
 
-describe.only('CompoundVault', async () => {
+describe('CompoundVault', async () => {
   it('creates a new clone of a CompoundLendingVault and checks creation Event and correct owner', async () => {
-    const data: string = abiCoder.encode(['address', 'address', 'address', 'address', 'address'], [CUSDC_ADDRESS, CETH_ADDRESS, ASSET_PRICE_FEED_ADDRESS, BORROW_ASSET_PRICE_FEED_ADDRESS, deployerAddress]);
+    const data: string = abiCoder.encode(['address', 'address', 'address', 'address', 'address'], [CUSDC_ADDRESS, CWETH_ADDRESS, ASSET_PRICE_FEED_ADDRESS, BORROW_ASSET_PRICE_FEED_ADDRESS, deployerAddress]);
 
     const cloneAddress: string = await compoundLendingVaultFactory.computeERC4626Address(USDC_ADDRESS, data);
     const receipt: TransactionReceipt = await waitForTx(compoundLendingVaultFactory.createERC4626(USDC_ADDRESS, data));
@@ -117,22 +120,49 @@ describe.only('CompoundVault', async () => {
     console.log(`User Two invested ${usdcBalanceUserTwo} USDC`);
   });
 
-  // it('user one withdraws from vault after blocks minted', async () => {
-  //   const blocks = 100;
-  //   await mine(blocks);
-  //   const userOneShares: BigNumber = await compoundClone.balanceOf(userOneAddress);
-  //   const userOnePreviewWithdraw: BigNumber = await compoundClone.previewRedeem(userOneShares);
+  it('user one withdraws from vault after blocks minted', async () => {
+    // Time passes, debt accumulates and rewards for supplying accrues
+    const blocks = 1000;
+    await mine(blocks);
+    
+    // Checking debt accrued
+    const vaultDebt: BigNumber = await cWethToken.borrowBalanceCurrent(compoundClone.address);
+    const wethBorrowRate: BigNumber = await cWethToken.borrowRatePerBlock();
+    const vaultWethBalance: BigNumber = await wethToken.balanceOf(compoundClone.address);
+    const expectedOutstandingDebt: BigNumber = vaultWethBalance.mul(wethBorrowRate.mul(blocks)).div('1000000000000000000');
+    const expectedDebt: BigNumber = expectedOutstandingDebt.add(vaultWethBalance);
+    expect(
+      vaultDebt, `Vault debt is ${vaultDebt} WETH and WETH balance is ${vaultWethBalance} WETH.`
+    ).to.be.equal(expectedDebt);
 
-  //   await waitForTx(compoundClone.approve(compoundClone.address, MAX_UINT256));
-  //   await compoundClone.connect(userOne).redeem(userOneShares, userOneAddress, userOneAddress, {
-  //     gasLimit: 1_000_000
-  //   });
-  //   await waitForTx(compoundClone.connect(userOne).redeem(userOneShares, userOneAddress, userOneAddress));
-  //   const userOneWithdrawnAssets: BigNumber = await wethToken.balanceOf(userOneAddress);
-  //   expect(
-  //     userOneWithdrawnAssets, `User expected to get around ${userOnePreviewWithdraw} WETH but got ${userOneWithdrawnAssets} WETH`
-  //   ).to.be.approximately(userOnePreviewWithdraw, userOnePreviewWithdraw.mul(10).div(100));
+    // Adding WETH balance to vault so that it can repay debt
+    const balanceSlotIndex: string = ethers.utils.solidityKeccak256(
+      ['uint256', 'uint256'],
+      [userOneAddress, WETH_BALANCE_SLOT] // key, slot
+    );
+    await setStorageAt(
+      WETH_ADDRESS,
+      balanceSlotIndex,
+      expectedOutstandingDebt
+    );
+    await wethToken.connect(userOne).transfer(compoundClone.address, expectedOutstandingDebt);
+    const vaultNewWethBalance: BigNumber = await wethToken.balanceOf(compoundClone.address);
 
-  //   console.log(`After ${blocks} blocks, User One withdrew ${userOneWithdrawnAssets} WETH`);
-  // });
+    expect(
+      vaultNewWethBalance, `Vault expected to have ${expectedDebt} WETH but got ${vaultNewWethBalance} USDC.`
+    ).to.be.equal(expectedDebt);
+
+    // Redeem shares
+    const userOneShares: BigNumber = await compoundClone.balanceOf(userOneAddress);
+    const userOnePreviewWithdraw: BigNumber = await compoundClone.previewRedeem(userOneShares);
+
+    await waitForTx(compoundClone.approve(compoundClone.address, MAX_UINT256));
+    await waitForTx(compoundClone.connect(userOne).redeem(userOneShares, userOneAddress, userOneAddress));
+    const userOneWithdrawnAssets: BigNumber = await usdcToken.balanceOf(userOneAddress);
+    expect(
+      userOneWithdrawnAssets, `User expected to get around ${userOnePreviewWithdraw} USDC but got ${userOneWithdrawnAssets} USDC.`
+    ).to.be.approximately(userOnePreviewWithdraw, userOnePreviewWithdraw.mul(10).div(100));
+
+    console.log(`After ${blocks} blocks, User One withdrew ${userOneWithdrawnAssets} USDC`);
+  });
 });

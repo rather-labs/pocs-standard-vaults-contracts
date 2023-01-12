@@ -5,6 +5,7 @@ import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.so
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../../../Errors.sol";
+import "hardhat/console.sol";
 
 /// @title LendingBaseVault
 /// @author ffarall, LucaCevasco
@@ -25,7 +26,13 @@ abstract contract LendingBaseVault is ERC4626 {
     }
 
     /// -----------------------------------------------------------------------
-    /// Public variables
+    /// Internal variables
+    /// -----------------------------------------------------------------------
+
+    mapping(address => uint256) internal _holdersLoans;
+
+    /// -----------------------------------------------------------------------
+    /// Public functions
     /// -----------------------------------------------------------------------
 
     function convertCollateralToBorrow(uint256 amount) public view virtual returns (uint256);
@@ -39,16 +46,28 @@ abstract contract LendingBaseVault is ERC4626 {
     /// @notice Opens a borrowing position for the sender, using the underlying
     /// lending protocol.
     /// @param amount The amount to borrow
-    function _borrow(uint256 amount) internal virtual;
+    /// @param holder Shareholder to which the borrowed tokens go
+    function _borrow(address holder, uint256 amount) internal virtual;
 
     /// @notice Closes a borrowing position for the sender, using the underlying
     /// lending protocol.
-    /// @param from The address to repay the debt from
-    function _repay(address from) internal virtual;
+    /// @param holder The holder's address who's debt is being repayed
+    function _repay(address holder) internal virtual;
 
-    function _beforeWithdraw(uint256 assets, address from) internal virtual {}
+    function _beforeWithdraw(
+        address caller,
+        address receiver,
+        address owner,
+        uint256 assets,
+        uint256 shares
+    ) internal virtual {}
 
-    function _afterDeposit(uint256 assets, uint256 shares) internal virtual {}
+    function _afterDeposit(
+        address caller,
+        address receiver,
+        uint256 assets,
+        uint256 shares
+    ) internal virtual {}
 
     /// -----------------------------------------------------------------------
     /// ERC4626 overrides
@@ -60,7 +79,7 @@ abstract contract LendingBaseVault is ERC4626 {
         shares = previewDeposit(assets);
         _deposit(_msgSender(), receiver, assets, shares);
 
-        _afterDeposit(assets, shares);
+        _afterDeposit(_msgSender(), receiver, assets, shares);
     }
 
     function mint(uint256 shares, address receiver) public virtual override returns (uint256 assets) {
@@ -69,7 +88,7 @@ abstract contract LendingBaseVault is ERC4626 {
         assets = previewMint(shares);
         _deposit(_msgSender(), receiver, assets, shares);
 
-        _afterDeposit(assets, shares);
+        _afterDeposit(_msgSender(), receiver, assets, shares);
     }
 
     function withdraw(
@@ -79,9 +98,9 @@ abstract contract LendingBaseVault is ERC4626 {
     ) public virtual override returns (uint256 shares) {
         require(assets <= maxWithdraw(owner), "ERC4626: withdraw more than max");
 
-        _beforeWithdraw(assets, _msgSender());
-
         shares = previewWithdraw(assets);
+        _beforeWithdraw(_msgSender(), receiver, owner, assets, shares);
+
         _withdraw(_msgSender(), receiver, owner, assets, shares);
     }
 
@@ -92,9 +111,9 @@ abstract contract LendingBaseVault is ERC4626 {
     ) public virtual override returns (uint256 assets) {
         require(shares <= maxRedeem(owner), "ERC4626: redeem more than max");
 
-        _beforeWithdraw(assets, _msgSender());
-
         assets = previewRedeem(shares);
+        _beforeWithdraw(_msgSender(), receiver, owner, assets, shares);
+
         _withdraw(_msgSender(), receiver, owner, assets, shares);
     }
 
