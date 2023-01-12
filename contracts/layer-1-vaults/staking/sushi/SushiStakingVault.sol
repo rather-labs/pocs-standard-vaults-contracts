@@ -261,29 +261,6 @@ contract SushiStakingVault is Ownable, Initializable, ERC4626, ISushiStakingVaul
         return (amountA, shares);
     }
 
-    function initialise(
-        ERC20 tokenA_, 
-        ERC20 tokenB_, 
-        IUniswapV2Router02 router_,
-        IUniswapV2Factory factory_,
-        IUniswapV2Pair pair_,
-        IMasterChefV2 farm_,
-        uint256 poolId_
-    ) external {
-        // TODO make it onlyOwner and manage owner in creation
-        tokenA = tokenA_;
-        tokenB = tokenB_;
-        router = router_;
-        factory = factory_;
-        pair = pair_;
-        farm = farm_;
-        poolId = poolId_;
-
-        // Setting path to swap, using simplest option as default
-        pathAtoB.push(address(tokenA));
-        pathAtoB.push(address(tokenB));
-    }
-
     /// -----------------------------------------------------------------------
     /// SushiSwap handling functions
     /// -----------------------------------------------------------------------
