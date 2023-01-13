@@ -51,7 +51,7 @@ contract DeltaNeutralVault is Ownable, Initializable, ERC4626, IDeltaNeutralVaul
     ERC20("DeltaNeutralVault", "DNV") { }
 
     /// -----------------------------------------------------------------------
-    /// Initalizable
+    /// Initializable
     /// -----------------------------------------------------------------------
 
     function initialize(
@@ -96,13 +96,26 @@ contract DeltaNeutralVault is Ownable, Initializable, ERC4626, IDeltaNeutralVaul
     }
 
     /// @inheritdoc ERC4626
+    function totalAssets() public view virtual override returns (uint256) {
+        uint256 lendingVaultShares = lendingVault.balanceOf(address(this));
+        return _convertToAssets(lendingVaultShares, Math.Rounding.Down);
+    }
+
+    /// @inheritdoc ERC4626
     function _deposit(
         address caller, 
         address receiver, 
         uint256 assets, 
         uint256 shares
     ) internal virtual override {
-        super._deposit(caller, receiver, assets, shares);
+        // If _asset is ERC777, `transferFrom` can trigger a reenterancy BEFORE the transfer happens through the
+        // `tokensToSend` hook. On the other hand, the `tokenReceived` hook, that is triggered after the transfer,
+        // calls the vault, which is assumed not malicious.
+        //
+        // Conclusion: we need to do the transfer before we mint so that any reentrancy would happen before the
+        // assets are transferred and before the shares are minted, which is a valid state.
+        // slither-disable-next-line reentrancy-no-eth
+        SafeERC20.safeTransferFrom(ERC20(asset()), caller, address(this), assets);
 
         // Deposit in lending vault
         lendingVault.deposit(assets, address(this));
@@ -110,6 +123,10 @@ contract DeltaNeutralVault is Ownable, Initializable, ERC4626, IDeltaNeutralVaul
         // Deposit in staking vault all that was borrowed from the lending vault
         uint256 amountAssetStake = stakingAsset.balanceOf(address(this));
         stakingVault.deposit(amountAssetStake, address(this));
+
+        _mint(receiver, shares);
+
+        emit Deposit(caller, receiver, assets, shares);
     }
 
     /// @inheritdoc ERC4626
@@ -120,6 +137,14 @@ contract DeltaNeutralVault is Ownable, Initializable, ERC4626, IDeltaNeutralVaul
         uint256 assets, 
         uint256 shares
     ) internal virtual override {
+        // If _asset is ERC777, `transfer` can trigger a reentrancy AFTER the transfer happens through the
+        // `tokensReceived` hook. On the other hand, the `tokensToSend` hook, that is triggered before the transfer,
+        // calls the vault, which is assumed not malicious.
+        //
+        // Conclusion: we need to do the transfer after the burn so that any reentrancy would happen after the
+        // shares are burned and after the assets are transferred, which is a valid state.
+        _burn(owner, shares);
+
         // Withdraw from staking vault
         uint256 stakingShares = stakingVault.balanceOf(address(this));
         stakingVault.redeem(stakingShares, receiver, owner);
@@ -131,7 +156,9 @@ contract DeltaNeutralVault is Ownable, Initializable, ERC4626, IDeltaNeutralVaul
         uint256 amountStakingAssets = stakingAsset.balanceOf(address(this));
         SafeERC20.safeTransferFrom(stakingAsset, caller, address(this), amountStakingAssets);
 
-        super._withdraw(caller, receiver, owner, assets, shares); 
+        SafeERC20.safeTransfer(ERC20(asset()), receiver, assets);
+
+        emit Withdraw(caller, receiver, owner, assets, shares);
     }
 
     /// @inheritdoc ERC4626

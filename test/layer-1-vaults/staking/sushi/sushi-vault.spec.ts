@@ -2,12 +2,9 @@ import { ethers } from 'hardhat';
 import '@nomiclabs/hardhat-ethers';
 import {
   TransactionReceipt,
-  TransactionResponse,
 } from '@ethersproject/providers';
 import { expect } from 'chai';
 import {
-  getAbbreviation,
-  getTimestamp,
   matchEvent,
   waitForTx,
   mine

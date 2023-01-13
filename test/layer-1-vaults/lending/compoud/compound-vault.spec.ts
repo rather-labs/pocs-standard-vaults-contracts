@@ -37,7 +37,7 @@ import { parseUnits } from 'ethers/lib/utils';
 
 let compoundClone: CompoundLendingVault;
 
-describe.only('CompoundVault', async () => {
+describe('CompoundVault', async () => {
   it('creates a new clone of a CompoundLendingVault and checks creation Event and correct owner', async () => {
     const data: string = abiCoder.encode(['address', 'address', 'address', 'address', 'address'], [CUSDC_ADDRESS, CWETH_ADDRESS, ASSET_PRICE_FEED_ADDRESS, BORROW_ASSET_PRICE_FEED_ADDRESS, deployerAddress]);
 

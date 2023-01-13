@@ -44,7 +44,7 @@ contract DeltaNeutralVaultFactory is Ownable, ERC4626Factory {
             )
         );
 
-        // Getting and pair
+        // Initialising vault
         IDeltaNeutralVault(address(vault)).initialize(
             VaultParams(ERC4626Factory(lendingFactory), ERC20(lendingAsset), lendingData),
             VaultParams(ERC4626Factory(stakingFactory), ERC20(stakingAsset), stakingData),
