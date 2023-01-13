@@ -159,6 +159,21 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         return amount * uint256(assetPriceInUSD) / uint256(borrowAssetPriceInUSD);
     }
 
+    function convertSharesToDebt(
+        uint256 shares
+    ) public view virtual override returns (uint256 debt) {
+        uint256 totalBorrowBalance = cTokenToBorrow.borrowBalanceStored(address(this));
+        return totalBorrowBalance * shares / totalSupply();
+    }
+
+    function getDebt(address holder) public view virtual override returns (uint256 debt) {
+        debt = convertSharesToDebt(balanceOf(holder));
+    }
+
+    function updateDebt() public virtual override {
+        cTokenToBorrow.accrueInterest();
+    }
+
     function _afterDeposit(
         address /* caller */,
         address receiver,
@@ -218,19 +233,22 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         ret = cTokenToBorrow.borrow(amount);
         require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
 
-        _holdersLoans[holder] = amount;
+        ERC20(cTokenToBorrow.underlying()).safeTransfer(holder, amount);
+
         emit Borrow(amount);
     }
 
-    /// TODO @notice Repay the given amount of asset to Compound
+    /// @notice Repay the given amount of asset to Compound
     function _repay(address holder) internal override {
-        uint256 amountToRepay = _holdersLoans[holder];
+        updateDebt();
+        uint256 amountToRepay = getDebt(holder);
+
+        ERC20(cTokenToBorrow.underlying()).safeTransferFrom(holder, address(this), amountToRepay);
 
         // Repay given amount to borrowed contract
         uint256 ret = cTokenToBorrow.repayBorrow(amountToRepay);
         require(ret == 0, "COMPOUND_BORROWER: cErc20.repay failed");
 
-        _holdersLoans[holder] = 0;
         emit Repay(amountToRepay);
     }
 
@@ -301,5 +319,4 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         }
         return price;
     }
-
 }

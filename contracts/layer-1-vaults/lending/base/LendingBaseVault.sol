@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import "../../../Errors.sol";
 
 /// @title LendingBaseVault
@@ -28,8 +29,6 @@ abstract contract LendingBaseVault is ERC4626 {
     /// Internal variables
     /// -----------------------------------------------------------------------
 
-    mapping(address => uint256) internal _holdersLoans;
-
     /// -----------------------------------------------------------------------
     /// Public functions
     /// -----------------------------------------------------------------------
@@ -37,6 +36,12 @@ abstract contract LendingBaseVault is ERC4626 {
     function convertCollateralToBorrow(uint256 amount) public view virtual returns (uint256);
 
     function convertBorrowToCollateral(uint256 amount) public view virtual returns (uint256);
+
+    function convertSharesToDebt(uint256 shares) public view virtual returns (uint256 debt);
+
+    function getDebt(address holder) public view virtual returns (uint256 debt);
+
+    function updateDebt() public virtual;
 
     /// -----------------------------------------------------------------------
     /// Internal functions

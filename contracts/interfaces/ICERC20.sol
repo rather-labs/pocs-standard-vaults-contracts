@@ -38,8 +38,11 @@ abstract contract ICERC20 is ERC20 {
 
     function borrowBalanceCurrent(address) external virtual view returns (uint256);
 
+    function borrowBalanceStored(address account) external virtual view returns (uint256);
+
     function repayBorrow(uint256) external virtual returns (uint256);
 
     function redeem(uint256) external virtual returns (uint256);
 
+    function accrueInterest() external virtual returns (uint256);
 }
