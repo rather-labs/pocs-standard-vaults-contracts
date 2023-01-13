@@ -134,7 +134,12 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
         uint256 borrowAssetDecimals = borrowAssetPriceFeed.decimals();
         borrowAssetPriceInUSD = _scalePrice(borrowAssetPriceInUSD, borrowAssetDecimals, _DECIMALS);
 
-        return amount * uint256(borrowAssetPriceInUSD) / uint256(assetPriceInUSD);
+        int256 converted = int256(amount) * borrowAssetPriceInUSD / assetPriceInUSD;
+        return uint256(_scalePrice(
+            converted,
+            ERC20(cToken.underlying()).decimals(),
+            ERC20(cTokenToBorrow.underlying()).decimals()
+        ));
     }
 
     function convertBorrowToCollateral(
