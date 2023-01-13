@@ -3,23 +3,37 @@ pragma solidity ^0.8.17;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import {ICERC20} from "../../../interfaces/ICERC20.sol";
 import {LibCompound} from "./lib/LibCompound.sol";
 import {IComptroller} from "../../../interfaces/IComptroller.sol";
 
 import {LendingBaseVault} from "../base/LendingBaseVault.sol";
-import {ICompoundLendingVault} from './ICompoundLendingVault.sol';
-import {CompoundERC4626__CompoundError} from '../../../Errors.sol';
+import {ICompoundLendingVault} from "./ICompoundLendingVault.sol";
+import "../../../Errors.sol";
 
 /// @title CompoundLendingVault
 /// @author ffarall, LucaCevasco
 /// @notice ERC4626 wrapper for Compound Finance
-contract CompoundLendingVault is LendingBaseVault, ICompoundLendingVault {
+contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, ICompoundLendingVault {
+
+    /// -----------------------------------------------------------------------
+    /// Events
+    /// -----------------------------------------------------------------------
+
+    event Borrow(uint256 amount);
+
+    event Repay(uint256 amount);
+
     /// -----------------------------------------------------------------------
     /// Libraries usage
     /// -----------------------------------------------------------------------
@@ -28,33 +42,36 @@ contract CompoundLendingVault is LendingBaseVault, ICompoundLendingVault {
     using SafeERC20 for ERC20;
 
     /// -----------------------------------------------------------------------
-    /// Events
-    /// -----------------------------------------------------------------------
-
-    event ClaimRewards(uint256 amount);
-
-    event Borrow(uint256 amount);
-
-    event Repay(uint256 amount);
-
-    /// -----------------------------------------------------------------------
     /// Constants
     /// -----------------------------------------------------------------------
 
+    /// @notice For Compound error handling
     uint256 internal constant _NO_ERROR = 0;
+    
+    /// @notice Decimals used for Chainlink price conversion
+    uint256 internal constant _DECIMALS = 18;
 
     /// -----------------------------------------------------------------------
-    /// params
+    /// Public params
     /// -----------------------------------------------------------------------
 
-    /// @notice The Compound cToken contract
+    /// @notice The Compound cToken contract for the collateral asset
     ICERC20 public cToken;
 
-    // @notice The underlying token asset
+    /// @notice The underlying token asset
     ERC20 public underAsset;
 
     /// @notice The Compound comptroller contract
     IComptroller public comptroller;
+
+    /// @notice The Compound cToken contract for the borrowed asset
+    ICERC20 public cTokenToBorrow;
+
+    /// @notice The Chainlink price feed for the asset of this vault
+    AggregatorV3Interface public assetPriceFeed;
+
+    /// @notice The Chainlink price feed for the asset to borrow
+    AggregatorV3Interface public borrowAssetPriceFeed;
 
     /// -----------------------------------------------------------------------
     /// Constructor
@@ -62,61 +79,112 @@ contract CompoundLendingVault is LendingBaseVault, ICompoundLendingVault {
 
     constructor()
         ERC4626(IERC20(address(0)))
-        ERC20('CompoundLendingVault', 'CLV') { }
+        ERC20("CompoundLendingVault", "CLV") { }
 
-    function initialise(ERC20 asset_, ICERC20 cToken_, IComptroller comptroller_) external {
-        // TODO make it onlyOwner and manage owner in creation
+    function initialize(
+        ERC20 asset_, 
+        ICERC20 cToken_, 
+        IComptroller comptroller_,
+        ICERC20 cTokenToBorrow_,
+        AggregatorV3Interface assetPriceFeed_, 
+        AggregatorV3Interface borrowAssetPriceFeed_,
+        address deployer
+    ) external initializer {
+      _transferOwnership(deployer);
+
         cToken = cToken_;
         comptroller = comptroller_;
         underAsset = asset_;
+        cTokenToBorrow = cTokenToBorrow_;
+        assetPriceFeed = assetPriceFeed_;
+        borrowAssetPriceFeed = borrowAssetPriceFeed_;
+
+        // enter market to use supplied token as collateral
+        address[] memory cTokensAux = new address[](1);
+        cTokensAux[0] = address(cToken);
+        uint256[] memory errors = comptroller.enterMarkets(cTokensAux);
+        require(errors[0] == 0, "COMPOUND_BORROWER: enterMarkets failed");
+
+        // pre-approve ERC20 transfers
+        ERC20(cTokenToBorrow.underlying()).safeApprove(address(cTokenToBorrow), 2**256 - 1);
     }
 
     /// -----------------------------------------------------------------------
-    /// Compound liquidity mining - lending
+    /// LendingBaseVault overrides
     /// -----------------------------------------------------------------------
 
-    /// @notice Borrow the given amount of asset from Compound
-    function borrow(uint256 amount) public override {
-      // Check account can borrow
-      (uint256 ret, uint256 liquidity, uint256 shortfall) = comptroller.getAccountLiquidity(address(this));
-      require(ret == 0, "COMPOUND_BORROWER: getAccountLiquidity failed.");
-      require(shortfall == 0, "COMPOUND_BORROWER: Account underwater");
-      require(liquidity > 0, "COMPOUND_BORROWER: Account doesn't have liquidity");
+    function convertCollateralToBorrow(
+        uint256 amount
+    ) public view virtual override returns (uint256) {
+        (, int256 assetPriceInUSD, , , ) = assetPriceFeed.latestRoundData();
+        if (assetPriceInUSD <= 0) revert CompoundERC4626__InvalidPrice({
+            price: assetPriceInUSD,
+            priceFeed: address(assetPriceFeed)
+        });
 
-      ret = ICERC20(address(cToken)).borrow(amount);
-      require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
+        uint256 assetDecimals = assetPriceFeed.decimals();
+        assetPriceInUSD = _scalePrice(assetPriceInUSD, assetDecimals, _DECIMALS);
+
+        (, int256 borrowAssetPriceInUSD, , , ) = borrowAssetPriceFeed.latestRoundData();
+        if (assetPriceInUSD <= 0) revert CompoundERC4626__InvalidPrice({
+            price: borrowAssetPriceInUSD,
+            priceFeed: address(borrowAssetPriceFeed)
+        });
+
+        uint256 borrowAssetDecimals = borrowAssetPriceFeed.decimals();
+        borrowAssetPriceInUSD = _scalePrice(borrowAssetPriceInUSD, borrowAssetDecimals, _DECIMALS);
+
+        int256 converted = int256(amount) * borrowAssetPriceInUSD / assetPriceInUSD;
+        return uint256(_scalePrice(
+            converted,
+            ERC20(cToken.underlying()).decimals(),
+            ERC20(cTokenToBorrow.underlying()).decimals()
+        ));
     }
 
-    /// @notice Repay the given amount of asset to Compound
-    function repay(uint256 amount) public override  {
-      // Approve tokens to Compound contract
-      IERC20(address(cToken)).approve(address(cToken), amount);
+    function convertBorrowToCollateral(
+        uint256 amount
+    ) public view virtual override returns (uint256) {
+        (, int256 assetPriceInUSD, , , ) = assetPriceFeed.latestRoundData();
+        // if (assetPriceInUSD <= 0) revert CompoundERC4626__InvalidPrice({
+        //     price: assetPriceInUSD,
+        //     priceFeed: address(assetPriceFeed)
+        // });
+        uint256 assetDecimals = assetPriceFeed.decimals();
+        assetPriceInUSD = _scalePrice(assetPriceInUSD, assetDecimals, _DECIMALS);
 
-      // Repay given amount to borrowed contract
-      uint256 ret = ICERC20(address(cToken)).repayBorrow(amount);
-      require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
+        (, int256 borrowAssetPriceInUSD, , , ) = borrowAssetPriceFeed.latestRoundData();
+        // if (assetPriceInUSD <= 0) revert CompoundERC4626__InvalidPrice({
+        //     price: borrowAssetPriceInUSD,
+        //     priceFeed: address(borrowAssetPriceFeed)
+        // });
+        uint256 borrowAssetDecimals = borrowAssetPriceFeed.decimals();
+        borrowAssetPriceInUSD = _scalePrice(borrowAssetPriceInUSD, borrowAssetDecimals, _DECIMALS);
+
+        return amount * uint256(assetPriceInUSD) / uint256(borrowAssetPriceInUSD);
     }
 
-    /// -----------------------------------------------------------------------
-    /// ERC4626 overrides
-    /// -----------------------------------------------------------------------
-
-    function totalAssets() public view virtual override returns (uint256) {
-        return cToken.viewUnderlyingBalanceOf(address(this));
+    function convertSharesToDebt(
+        uint256 shares
+    ) public view virtual override returns (uint256 debt) {
+        uint256 totalBorrowBalance = cTokenToBorrow.borrowBalanceStored(address(this));
+        return totalBorrowBalance * shares / totalSupply();
     }
 
-    function _beforeWithdraw(uint256 assets, uint256 /*shares*/ ) internal virtual override {
-        /// -----------------------------------------------------------------------
-        /// Withdraw assets from Compound
-        /// -----------------------------------------------------------------------
-
-        uint256 errorCode = cToken.redeemUnderlying(assets);
-        if (errorCode != _NO_ERROR) {
-            revert CompoundERC4626__CompoundError(errorCode);
-        }
+    function getDebt(address holder) public view virtual override returns (uint256 debt) {
+        debt = convertSharesToDebt(balanceOf(holder));
     }
 
-    function _afterDeposit(uint256 assets, uint256 /*shares*/ ) internal virtual override {
+    function updateDebt() public virtual override {
+        cTokenToBorrow.accrueInterest();
+    }
+
+    function _afterDeposit(
+        address /* caller */,
+        address receiver,
+        uint256 assets,
+        uint256 /* shares */
+    ) internal virtual override {
         /// -----------------------------------------------------------------------
         /// Deposit assets into Compound
         /// -----------------------------------------------------------------------
@@ -129,6 +197,75 @@ contract CompoundLendingVault is LendingBaseVault, ICompoundLendingVault {
         if (errorCode != _NO_ERROR) {
             revert CompoundERC4626__CompoundError(errorCode);
         }
+        
+        // borrow
+        uint256 valueInAssetBorrow = convertCollateralToBorrow(assets);
+        (bool isListed, uint256 colFactor, ) = comptroller.markets(address(cToken));
+        if (!isListed) revert CompoundERC4626__MarketNotListed(address(cToken));
+
+        colFactor = colFactor * 90 / 100;
+        uint256 amountBorrow = valueInAssetBorrow * colFactor / 10**18;
+        _borrow(receiver, amountBorrow);
+    }
+
+    function _beforeWithdraw(
+        address caller,
+        address /* receiver */,
+        address /* owner*/,
+        uint256 assets,
+        uint256 /* shares*/
+    ) internal virtual override {
+        /// -----------------------------------------------------------------------
+        /// Withdraw assets from Compound
+        /// -----------------------------------------------------------------------
+
+        _repay(caller);
+
+        uint256 errorCode = cToken.redeemUnderlying(assets);
+        if (errorCode != _NO_ERROR) {
+            revert CompoundERC4626__CompoundError(errorCode);
+        }
+    }
+
+    /// @notice Borrow the given amount of asset from Compound
+    function _borrow(address holder, uint256 amount) internal override {
+        // Check account can borrow
+        (uint256 ret, uint256 liquidity, uint256 shortfall) = comptroller.getAccountLiquidity(address(this));
+        require(ret == 0, "COMPOUND_BORROWER: getAccountLiquidity failed.");
+        require(shortfall == 0, "COMPOUND_BORROWER: Account underwater");
+        require(liquidity > 0, "COMPOUND_BORROWER: Account doesn't have liquidity");
+
+        ret = cTokenToBorrow.borrow(amount);
+        require(ret == 0, "COMPOUND_BORROWER: cErc20.borrow failed");
+
+        ERC20(cTokenToBorrow.underlying()).safeTransfer(holder, amount);
+
+        emit Borrow(amount);
+    }
+
+    /// @notice Repay the given amount of asset to Compound
+    function _repay(address holder) internal override {
+        updateDebt();
+        uint256 amountToRepay = getDebt(holder);
+        ERC20(cTokenToBorrow.underlying()).safeTransferFrom(holder, address(this), amountToRepay);
+
+        // Repay given amount to borrowed contract
+        uint256 ret = cTokenToBorrow.repayBorrow(amountToRepay);
+        require(ret == 0, "COMPOUND_BORROWER: cErc20.repay failed");
+
+        emit Repay(amountToRepay);
+    }
+
+    /// -----------------------------------------------------------------------
+    /// ERC4626 overrides
+    /// -----------------------------------------------------------------------
+
+    function asset() public view virtual override returns (address) {
+        return address(underAsset);
+    }
+
+    function totalAssets() public view virtual override returns (uint256) {
+        return cToken.viewUnderlyingBalanceOf(address(this));
     }
 
     function maxDeposit(address) public view override returns (uint256) {
@@ -156,5 +293,34 @@ contract CompoundLendingVault is LendingBaseVault, ICompoundLendingVault {
         uint256 cashInShares = convertToShares(cash);
         uint256 shareBalance = balanceOf(owner);
         return cashInShares < shareBalance ? cashInShares : shareBalance;
+    }
+
+    function _convertToShares(uint256 assets, Math.Rounding /* rounding */) internal view virtual override returns (uint256 shares) {
+        uint256 exchangeRate = cToken.exchangeRateStored();
+        uint256 scaleUp = 10 ** (10 + ERC20(cToken.underlying()).decimals());
+        shares = assets * scaleUp / exchangeRate;
+    }
+
+    function _convertToAssets(uint256 shares, Math.Rounding /* rounding */) internal view virtual override returns (uint256 assets) {
+        uint256 exchangeRate = cToken.exchangeRateStored();
+        uint256 scaleDown = 10 ** (10 + ERC20(cToken.underlying()).decimals());
+        assets = shares * exchangeRate / scaleDown;
+    }
+
+    /// -----------------------------------------------------------------------
+    /// Internal functions
+    /// -----------------------------------------------------------------------
+
+    function _scalePrice(
+        int256 price,
+        uint256 priceDecimals,
+        uint256 decimals
+    ) internal pure returns (int256) {
+        if (priceDecimals < decimals) {
+            return price * int256(10 ** uint256(decimals - priceDecimals));
+        } else if (priceDecimals > decimals) {
+            return price / int256(10 ** uint256(priceDecimals - decimals));
+        }
+        return price;
     }
 }

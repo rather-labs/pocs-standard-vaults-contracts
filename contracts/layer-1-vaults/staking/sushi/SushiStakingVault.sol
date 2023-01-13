@@ -62,7 +62,7 @@ contract SushiStakingVault is Ownable, Initializable, ERC4626, ISushiStakingVaul
     ERC20("SushiStakingVault", "SSV") { }
 
     /// -----------------------------------------------------------------------
-    /// ERC4626 overrides
+    /// Initalizable
     /// -----------------------------------------------------------------------
 
     function initialize(
@@ -95,6 +95,10 @@ contract SushiStakingVault is Ownable, Initializable, ERC4626, ISushiStakingVaul
         pair.approve(address(farm), 2**256 - 1);
         pair.approve(address(router), 2**256 - 1);
     }
+
+    /// -----------------------------------------------------------------------
+    /// ERC4626 overrides
+    /// -----------------------------------------------------------------------
 
     /// @inheritdoc ERC4626
     function asset() public view virtual override returns (address) {
@@ -213,20 +217,8 @@ contract SushiStakingVault is Ownable, Initializable, ERC4626, ISushiStakingVaul
         // slither-disable-next-line reentrancy-no-eth
         SafeERC20.safeTransferFrom(ERC20(asset()), caller, address(this), assets);
 
-        // Swap half the assets to tokenB, to invest in pool
-        uint256 amountA = assets / 2;
-        uint256 amountB = SushiStakingLogic.swap(amountA, pathAtoB, router);
-
-        // Add liquidity with both assets
-        uint256 lptAmount;
-        (, , lptAmount) = _addLiquidity(amountA, amountB);
-
-        // Invest in SushiSwap farm
-        _stake(lptAmount);
+        uint256 lptAmount = _addLiquidityAndStake(assets);
         _mint(receiver, lptAmount);
-
-        _lptsDeposited += lptAmount;
-
         emit Deposit(caller, receiver, assets, lptAmount);
 
         return (assets, lptAmount);
@@ -245,16 +237,16 @@ contract SushiStakingVault is Ownable, Initializable, ERC4626, ISushiStakingVaul
         //
         // Conclusion: we need to do the transfer after the burn so that any reentrancy would happen after the
         // shares are burned and after the assets are transferred, which is a valid state.
+        _unstake(owner, shares);
         _burn(owner, shares);
-        _unstake(shares);
 
-        uint256 amountA;
-        amountA = _removeLiquidity(shares);
-        SafeERC20.safeTransfer(ERC20(asset()), receiver, amountA);
+        _removeLiquidity(shares);
+        uint256 amountToWithdraw = ERC20(asset()).balanceOf(address(this));
+        SafeERC20.safeTransfer(ERC20(asset()), receiver, amountToWithdraw);
 
-        emit Withdraw(caller, receiver, owner, amountA, shares);
+        emit Withdraw(caller, receiver, owner, amountToWithdraw, shares);
 
-        return (amountA, shares);
+        return (amountToWithdraw, shares);
     }
 
     /// -----------------------------------------------------------------------
@@ -286,6 +278,34 @@ contract SushiStakingVault is Ownable, Initializable, ERC4626, ISushiStakingVaul
     {
         return SushiStakingLogic.addLiquidity(amountA, amountB, tokenA, tokenB, router);
     }
+    
+    /// @notice This contract must be previously funded with the required amounts.
+    /// `amountA` and `amountB` must be accordingly balanced given the current pool price.
+    /// min amounts are internally computed.
+    /// a 300s deadline is internally specified.
+    /// @dev Adds liquidity to a liquidity pool given by `tokenA` and `tokenB` via `router`.
+    /// @param assets the amount of `tokenA` to be deposited.
+    function _addLiquidityAndStake(
+        uint256 assets
+    ) internal returns (uint256)
+    {
+        // Swap half the assets to tokenB, to invest in pool
+        uint256 amountA = assets / 2;
+        uint256 lptAmount;
+        if (amountA != 0) {
+            uint256 amountB = SushiStakingLogic.swap(amountA, pathAtoB, router);
+
+            // Add liquidity with both assets
+            (, , lptAmount) = _addLiquidity(amountA, amountB);
+
+            // Invest in SushiSwap farm
+            _stake(lptAmount);
+
+            _lptsDeposited += lptAmount;
+        }
+
+        return lptAmount;
+    }
 
     /// @notice Removes liquidity from a liquidity pool given by `tokenA` and `tokenB` via `router`,
     /// back to this contract.
@@ -313,9 +333,22 @@ contract SushiStakingVault is Ownable, Initializable, ERC4626, ISushiStakingVaul
     }
 
     /// @notice Claims rewards and unstakes LPTs from MasterChef contract.
+    /// @param owner of the LPTs.
     /// @param lptAmount the amount of liquidity provider tokens to burn.
-    function _unstake(uint256 lptAmount) internal {
-        SushiStakingLogic.unstake(tokenA, lptAmount, router, farm, poolId);
+    function _unstake(
+        address owner,
+        uint256 lptAmount
+    ) internal {
+        // Claim rewards and swap them for base asset
+        SushiStakingLogic.claimRewards(tokenA, router, farm, poolId);
+
+        // Reinvest share that doesn't belong to user withdrawing
+        uint256 assetsClaimed = ERC20(asset()).balanceOf(address(this));
+        uint256 amountToReinvest = assetsClaimed * (totalSupply() - balanceOf(owner)) / totalSupply();
+        _addLiquidityAndStake(amountToReinvest);
+        
+        // Unstake user's shares (i.e. LPTs)
+        SushiStakingLogic.unstake(lptAmount, farm, poolId);
     }
 
     /// -----------------------------------------------------------------------

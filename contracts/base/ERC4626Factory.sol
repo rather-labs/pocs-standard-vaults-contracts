@@ -5,6 +5,8 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 
+import "../Errors.sol";
+
 /// @title ERC4626Factory
 /// @author ffarall, LucaCevasco
 /// @notice Abstract base contract for deploying ERC4626 wrappers
@@ -38,10 +40,15 @@ abstract contract ERC4626Factory {
     /// @param data Extra data specific to implementation of this factory
     /// @return vault The vault that was created
     function createERC4626(ERC20 asset, bytes calldata data) external virtual returns (ERC4626 vault) {
+        if (vaultExists(asset, data)) revert ERC4626Factory__VaultExistsAlready({
+            vault: address(computeERC4626Address(asset, data))
+        });
+
         bytes32 salt = keccak256(
             abi.encodePacked(
                 implementation,
-                asset
+                asset,
+                data
             )
         );
         vault = ERC4626(Clones.cloneDeterministic(implementation, salt));
@@ -54,18 +61,33 @@ abstract contract ERC4626Factory {
     /// @notice Computes the address of the ERC4626 vault corresponding to an asset. Returns
     /// a valid result regardless of whether the vault has already been deployed.
     /// @param asset The base asset used by the vault
+    /// @param data Extra data specific to implementation of this factory
     /// @return vault The vault corresponding to the asset
-    function computeERC4626Address(ERC20 asset) external view virtual returns (ERC4626 vault) {
-        vault = ERC4626(
-            _computeCreate2Address(
-                keccak256(
-                    abi.encodePacked(
-                        implementation,
-                        asset
-                    )
-                )
+    function computeERC4626Address(ERC20 asset, bytes memory data) public view virtual returns (ERC4626 vault) {
+        bytes32 salt = keccak256(
+            abi.encodePacked(
+                implementation,
+                asset,
+                data
             )
         );
+
+        vault = ERC4626(
+            _computeCreate2Address(salt)
+        );
+    }
+
+    /// @notice Determines whether a vault is already deployed or not.
+    /// @param asset The base asset used by the vault
+    /// @param data Extra data specific to implementation of this factory
+    /// @return exists true if vault exists, false otherwise.
+    function vaultExists(ERC20 asset, bytes memory data) public view returns (bool exists) {
+        address vault = address(computeERC4626Address(asset, data));
+        uint32 size;
+        assembly {
+            size := extcodesize(vault)
+        }
+        return (size > 0);
     }
 
     /// -----------------------------------------------------------------------
@@ -76,26 +98,14 @@ abstract contract ERC4626Factory {
     /// @param data Extra data specific to implementation of this factory
     function _initialize(ERC4626 vault, ERC20 asset, bytes memory data) internal virtual;
 
-    /// @notice Determines whether a vault is already deployed or not.
-    /// @param bytecodeHash The keccak256 hash of the creation code of the contract being deployed concatenated
-    /// with the ABI-encoded constructor arguments.
-    /// @return exists true if vault exists, false otherwise.
-    function _vaultExists(bytes32 bytecodeHash) internal view returns (bool exists) {
-        address vault = _computeCreate2Address(bytecodeHash);
-        uint32 size;
-        assembly {
-            size := extcodesize(vault)
-        }
-        return (size > 0);
-    }
-
     /// @notice Computes the address of a contract deployed by this factory using CREATE2, given
     /// the bytecode hash of the contract. Can also be used to predict addresses of contracts yet to
     /// be deployed.
-    /// @param bytecodeHash The keccak256 hash of the creation code of the contract being deployed concatenated
+    /// @param salt The keccak256 hash of the implementation, asset and data parameters of 
+    /// the contract being deployed concatenated
     /// with the ABI-encoded constructor arguments.
     /// @return vault The address of the deployed contract
-    function _computeCreate2Address(bytes32 bytecodeHash) internal view virtual returns (address vault) {
-        return Clones.predictDeterministicAddress(implementation, bytecodeHash, address(this));
+    function _computeCreate2Address(bytes32 salt) internal view virtual returns (address vault) {
+        return Clones.predictDeterministicAddress(implementation, salt, address(this));
     }
 }

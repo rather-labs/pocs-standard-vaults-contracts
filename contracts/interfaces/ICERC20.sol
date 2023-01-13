@@ -20,7 +20,7 @@ abstract contract ICERC20 is ERC20 {
 
     function accrualBlockNumber() external view virtual returns (uint256);
 
-    function redeemUnderlying(uint256 underlyingAmount) external virtual returns (uint256);
+    function redeemUnderlying(uint256 redeemUnderlying) external virtual returns (uint256);
 
     function balanceOfUnderlying(address) external virtual returns (uint256);
 
@@ -38,8 +38,11 @@ abstract contract ICERC20 is ERC20 {
 
     function borrowBalanceCurrent(address) external virtual view returns (uint256);
 
+    function borrowBalanceStored(address account) external virtual view returns (uint256);
+
     function repayBorrow(uint256) external virtual returns (uint256);
 
     function redeem(uint256) external virtual returns (uint256);
 
+    function accrueInterest() external virtual returns (uint256);
 }

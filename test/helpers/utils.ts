@@ -198,12 +198,6 @@ export async function setNextBlockTimestamp(timestamp: number): Promise<void> {
   await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
 }
 
-export async function mine(blocks: number): Promise<void> {
-  for (let i = 0; i < blocks; i++) {
-    await hre.ethers.provider.send('evm_mine', []);
-  }
-}
-
 let snapshotId = '0x1';
 export async function takeSnapshot() {
   snapshotId = await hre.ethers.provider.send('evm_snapshot', []);
@@ -259,4 +253,10 @@ export async function currentTimestamp(): Promise<number> {
   const blockNumber = await ethers.provider.getBlockNumber();
   const block = await ethers.provider.getBlock(blockNumber);
   return block.timestamp;
+}
+
+export async function setStorageAt(address: string, index: string, value: BigNumber) {
+  const valueBytes: string = ethers.utils.hexlify(ethers.utils.zeroPad(value.toHexString(), 32));
+  await ethers.provider.send('hardhat_setStorageAt', [address, index, valueBytes]);
+  await ethers.provider.send('evm_mine', []); // Just mines to the next block
 }

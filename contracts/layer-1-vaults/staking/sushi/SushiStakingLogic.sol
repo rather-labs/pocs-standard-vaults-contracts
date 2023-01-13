@@ -155,13 +155,11 @@ library SushiStakingLogic {
     }
 
     function unstake(
-        ERC20 tokenA,
         uint256 lptAmount,
-        IUniswapV2Router02 router,
         IMasterChefV2 farm,
         uint256 poolId
     ) external {
-        _claimRewards(tokenA, router, farm, poolId);
+        // Withdraw user's shares (i.e. LPTs)
         farm.withdraw(poolId, lptAmount, address(this));
     }
 
@@ -170,9 +168,9 @@ library SushiStakingLogic {
         address[] memory path,
         IUniswapV2Router02 router
     ) public returns (uint256) {
-        // Getting quote for swap, considering 5% slippage
+        // Getting quote for swap, considering 1% slippage
         uint256[] memory amountsOutQuote = router.getAmountsOut(amountIn, path);
-        uint256 minAmountOut = amountsOutQuote[amountsOutQuote.length - 1] * 95 / 100;
+        uint256 minAmountOut = amountsOutQuote[amountsOutQuote.length - 1] * 990 / 1000;
         
         // Swapping
         uint256[] memory amountsOut = router.swapExactTokensForTokens(
@@ -187,12 +185,12 @@ library SushiStakingLogic {
         return amountOut;
     }
 
-    function _claimRewards(
+    function claimRewards(
         ERC20 tokenA,
         IUniswapV2Router02 router,
         IMasterChefV2 farm,
         uint256 poolId
-    ) private returns (address[] memory, uint256[] memory) {
+    ) public returns (address[] memory, uint256[] memory) {
         address[] memory rewards;
         uint256[] memory amounts;
         (rewards, amounts) = getAccruedRewards(false, farm, poolId);
