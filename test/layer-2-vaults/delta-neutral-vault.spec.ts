@@ -12,13 +12,11 @@ import {
 import {
   abiCoder,
   userOne,
-  userTwo,
   USDC_ADDRESS,
   WETH_ADDRESS,
   POOL_ID_USDC_WETH,
   deployerAddress,
   userOneAddress,
-  userTwoAddress,
   deltaNeutralVaultFactory,
   CUSDC_ADDRESS,
   CWETH_ADDRESS,
