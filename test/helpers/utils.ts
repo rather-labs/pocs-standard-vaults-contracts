@@ -198,12 +198,6 @@ export async function setNextBlockTimestamp(timestamp: number): Promise<void> {
   await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
 }
 
-export async function mine(blocks: number): Promise<void> {
-  for (let i = 0; i < blocks; i++) {
-    await hre.ethers.provider.send('evm_mine', []);
-  }
-}
-
 let snapshotId = '0x1';
 export async function takeSnapshot() {
   snapshotId = await hre.ethers.provider.send('evm_snapshot', []);

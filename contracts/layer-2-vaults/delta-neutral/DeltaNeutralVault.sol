@@ -146,17 +146,18 @@ contract DeltaNeutralVault is Ownable, Initializable, ERC4626, IDeltaNeutralVaul
         _burn(owner, shares);
 
         // Withdraw from staking vault
-        uint256 stakingShares = stakingVault.balanceOf(address(this));
-        stakingVault.redeem(stakingShares, receiver, owner);
+        uint256 stakingShares = stakingVault.balanceOf(address(this)); // TODO * balanceOf(owner) / totalSupply();
+        stakingVault.redeem(stakingShares, address(this), address(this));
 
         // Withdraw from lending vault
-        lendingVault.withdraw(assets, receiver, owner);
+        uint256 lendingShares = lendingVault.balanceOf(address(this)); // TODO * balanceOf(owner) / totalSupply();
+        lendingVault.redeem(lendingShares, address(this), address(this));
 
         // Transfering leftover tokens from staking investment
         uint256 amountStakingAssets = stakingAsset.balanceOf(address(this));
-        SafeERC20.safeTransferFrom(stakingAsset, caller, address(this), amountStakingAssets);
+        stakingAsset.safeTransfer(receiver, amountStakingAssets);
 
-        SafeERC20.safeTransfer(ERC20(asset()), receiver, assets);
+        ERC20(asset()).safeTransfer(receiver, assets);
 
         emit Withdraw(caller, receiver, owner, assets, shares);
     }

@@ -7,7 +7,6 @@ import { expect } from 'chai';
 import {
   matchEvent,
   waitForTx,
-  mine,
   setStorageAt
 } from '../helpers/utils';
 import {
@@ -18,7 +17,6 @@ import {
   WETH_ADDRESS,
   POOL_ID_USDC_WETH,
   deployerAddress,
-  wethToken,
   userOneAddress,
   userTwoAddress,
   deltaNeutralVaultFactory,
@@ -31,15 +29,16 @@ import {
   usdcToken,
   USDC_BALANCE_SLOT,
 } from '../__setup.spec';
-import { DeltaNeutralVault, SushiStakingVault } from '../../typechain-types';
+import { DeltaNeutralVault } from '../../typechain-types';
 import DELTA_NEUTRAL_VAULT_ABI from '../../artifacts/contracts/layer-2-vaults/delta-neutral/DeltaNeutralVault.sol/DeltaNeutralVault.json';
 import { MAX_UINT256 } from '../helpers/constants';
-import { parseEther, parseUnits } from 'ethers/lib/utils';
+import { parseUnits } from 'ethers/lib/utils';
 import { BigNumber } from 'ethers';
+import { mine } from '@nomicfoundation/hardhat-network-helpers';
 
 let deltaNeutralClone: DeltaNeutralVault;
 
-describe.only('DeltaNeutralVault', async () => {
+describe('DeltaNeutralVault', async () => {
   it('creates a new clone of a DeltaNeutralVault and checks creation Event and correct owner', async () => {
     // Setting up parameters for underlying layer 1 vaults (we only)
     const lendingVaultData: string = abiCoder.encode(
@@ -84,7 +83,7 @@ describe.only('DeltaNeutralVault', async () => {
       ['uint256', 'uint256'],
       [userOneAddress, USDC_BALANCE_SLOT] // key, slot
     );
-    const expectedBalance: BigNumber = parseUnits('1000', 6);
+    const expectedBalance: BigNumber = parseUnits('10', 6);
     await setStorageAt(
       USDC_ADDRESS,
       balanceSlotIndex,
@@ -99,9 +98,6 @@ describe.only('DeltaNeutralVault', async () => {
     // Depositing in Delta Neutral vault
     await usdcToken.connect(userOne).approve(deltaNeutralClone.address, MAX_UINT256);
     const userOnePreviewShares: BigNumber = await deltaNeutralClone.previewDeposit(usdcBalanceUserOne);
-    // await deltaNeutralClone.connect(userOne).deposit(usdcBalanceUserOne, userOneAddress, {
-    //   gasLimit: 2_000_000
-    // });
     await waitForTx(deltaNeutralClone.connect(userOne).deposit(usdcBalanceUserOne, userOneAddress));
 
     const userOneShares: BigNumber = await deltaNeutralClone.balanceOf(userOneAddress);
@@ -112,51 +108,22 @@ describe.only('DeltaNeutralVault', async () => {
     console.log(`User One invested ${usdcBalanceUserOne} USDC`);
   });
 
-  //   it('user two invests in vault', async () => {
-  //     // Swapping some WETH
-  //     const WNATIVE: string = await sushiRouter.WETH();
-  //     const amountsOutQuote = await sushiRouter.getAmountsOut(parseEther('100'), [WNATIVE, WETH_ADDRESS]);
-  //     const minAmountOut: BigNumber = amountsOutQuote[amountsOutQuote.length - 1].mul(95).div(100);
+  it('user one withdraws from vault after blocks minted', async () => {
+    // Time passes, debt accumulates and rewards for supplying and staking accrues
+    const blocks = 15_770_000 * 2;
+    await mine(blocks);
 
-  //     await sushiRouter.connect(userTwo).swapExactETHForTokens(
-  //       minAmountOut,
-  //       [WNATIVE, WETH_ADDRESS],
-  //       userTwoAddress,
-  //       (await ethers.provider.getBlock('latest')).timestamp + 300,
-  //       {
-  //         value: parseEther('100000')
-  //       }
-  //     );
+    // Redeem shares
+    const userOneShares: BigNumber = await deltaNeutralClone.balanceOf(userOneAddress);
+    const userOnePreviewWithdraw: BigNumber = await deltaNeutralClone.previewRedeem(userOneShares);
 
-  //     const wethBalanceUserTwo: BigNumber = await wethToken.balanceOf(userTwoAddress);
+    await waitForTx(deltaNeutralClone.approve(deltaNeutralClone.address, MAX_UINT256));
+    await waitForTx(deltaNeutralClone.connect(userOne).redeem(userOneShares, userOneAddress, userOneAddress));
+    const userOneWithdrawnAssets: BigNumber = await usdcToken.balanceOf(userOneAddress);
+    expect(
+      userOneWithdrawnAssets, `User expected to get around ${userOnePreviewWithdraw} USDC but got ${userOneWithdrawnAssets} USDC.`
+    ).to.be.approximately(userOnePreviewWithdraw, userOnePreviewWithdraw.mul(10).div(100));
 
-  //     expect(
-  //       wethBalanceUserTwo, 'User WETH balance is lower than 10 WETH'
-  //     ).to.be.greaterThan(parseEther('10'));
-
-  //     await wethToken.connect(userTwo).approve(sushiClone.address, MAX_UINT256);
-  //     const userTwoPreviewShares: BigNumber = await sushiClone.previewDeposit(wethBalanceUserTwo);
-  //     await waitForTx(sushiClone.connect(userTwo).deposit(wethBalanceUserTwo, userTwoAddress));
-
-  //     const userTwoShares: BigNumber = await sushiClone.balanceOf(userTwoAddress);
-  //     expect(
-  //       userTwoShares, `User expected to get around ${userTwoPreviewShares} but got ${userTwoShares}.`
-  //     ).to.be.approximately(userTwoPreviewShares, userTwoPreviewShares.mul(10).div(100));
-  //   });
-
-  //   it('user one withdraws from vault after blocks minted', async () => {
-  //     const blocks = 100;
-  //     await mine(blocks);
-  //     const userOneShares: BigNumber = await sushiClone.balanceOf(userOneAddress);
-  //     const userOnePreviewWithdraw: BigNumber = await sushiClone.previewRedeem(userOneShares);
-
-  //     await waitForTx(sushiClone.approve(sushiClone.address, MAX_UINT256));
-  //     await waitForTx(sushiClone.connect(userOne).redeem(userOneShares, userOneAddress, userOneAddress));
-  //     const userOneWithdrawnAssets: BigNumber = await wethToken.balanceOf(userOneAddress);
-  //     expect(
-  //       userOneWithdrawnAssets, `User expected to get around ${userOnePreviewWithdraw} WETH but got ${userOneWithdrawnAssets} WETH`
-  //     ).to.be.approximately(userOnePreviewWithdraw, userOnePreviewWithdraw.mul(10).div(100));
-
-//     console.log(`After ${blocks} blocks, User One withdrew ${userOneWithdrawnAssets} WETH`);
-//   });
+    console.log(`After ${blocks} blocks, User One withdrew ${userOneWithdrawnAssets} USDC`);
+  });
 });

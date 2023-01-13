@@ -31,8 +31,12 @@ export const USDC_ADDRESS = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
 export const USDC_BALANCE_SLOT = 0; // Obtained using https://kndrck.co/posts/local_erc20_bal_mani_w_hh/
 export const WETH_ADDRESS = '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619';
 export const WETH_BALANCE_SLOT = 0; // Obtained using https://kndrck.co/posts/local_erc20_bal_mani_w_hh/
+export const CRV_ADDRESS = '0x172370d5Cd63279eFa6d502DAB29171933a610AF';
+export const MANA_ADDRESS = '0xA1c57f48F0Deb89f569dFbE6E2B7f46D33606fD4';
 // Sushi-like protocol
 export const POOL_ID_USDC_WETH = 1;
+export const POOL_ID_CRV_WETH = 9;
+export const POOL_ID_MANA_WETH = 34;
 export const ROUTER_ADDRESS = '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506';
 export const MINICHEF_ADDRESS = '0x0769fd68dFb93167989C6f7254cd0D766Fb2841F';
 export const FACTORY_ADDRESS = '0xc35DADB65012eC5796536bD9864eD8773aBc74C4';

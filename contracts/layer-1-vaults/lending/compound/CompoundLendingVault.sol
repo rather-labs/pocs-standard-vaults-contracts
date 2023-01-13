@@ -247,7 +247,6 @@ contract CompoundLendingVault is Ownable, LendingBaseVault, Initializable, IComp
     function _repay(address holder) internal override {
         updateDebt();
         uint256 amountToRepay = getDebt(holder);
-
         ERC20(cTokenToBorrow.underlying()).safeTransferFrom(holder, address(this), amountToRepay);
 
         // Repay given amount to borrowed contract

@@ -1,5 +1,6 @@
 import { ethers } from 'hardhat';
 import '@nomiclabs/hardhat-ethers';
+import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import {
   TransactionReceipt,
 } from '@ethersproject/providers';
@@ -7,7 +8,7 @@ import { expect } from 'chai';
 import {
   matchEvent,
   waitForTx,
-  mine
+  setStorageAt
 } from '../../../helpers/utils';
 import {
   sushiVaultFactory,
@@ -19,9 +20,9 @@ import {
   POOL_ID_USDC_WETH,
   deployerAddress,
   wethToken,
-  sushiRouter,
   userOneAddress,
   userTwoAddress,
+  WETH_BALANCE_SLOT,
 } from '../../../__setup.spec';
 import { SushiStakingVault } from '../../../../typechain-types';
 import SUSHI_VAULT_ABI from '../../../../artifacts/contracts/layer-1-vaults/staking/sushi/SushiStakingVault.sol/SushiStakingVault.json';
@@ -30,6 +31,7 @@ import { parseEther } from 'ethers/lib/utils';
 import { BigNumber } from 'ethers';
 
 let sushiClone: SushiStakingVault;
+let blocks: number;
 
 describe('SushiVault', async () => {
   it('creates a new clone of a SushiStakingVault and checks creation Event and correct owner', async () => {
@@ -51,26 +53,18 @@ describe('SushiVault', async () => {
   });
 
   it('user one invests in vault', async () => {
-    // Swapping some WETH
-    const WNATIVE: string = await sushiRouter.WETH();
-    const amountsOutQuote = await sushiRouter.getAmountsOut(parseEther('100'), [WNATIVE, WETH_ADDRESS]);
-    const minAmountOut: BigNumber = amountsOutQuote[amountsOutQuote.length - 1].mul(95).div(100);
-
-    await sushiRouter.connect(userOne).swapExactETHForTokens(
-      minAmountOut,
-      [WNATIVE, WETH_ADDRESS],
-      userOneAddress,
-      (await ethers.provider.getBlock('latest')).timestamp + 300,
-      {
-        value: parseEther('100000')
-      }
+    // Adding WETH balance to userOne
+    const balanceSlotIndex: string = ethers.utils.solidityKeccak256(
+      ['uint256', 'uint256'],
+      [userOneAddress, WETH_BALANCE_SLOT] // key, slot
     );
-
+    const expectedBalance: BigNumber = parseEther('10');
+    await setStorageAt(
+      WETH_ADDRESS,
+      balanceSlotIndex,
+      expectedBalance
+    );
     const wethBalanceUserOne: BigNumber = await wethToken.balanceOf(userOneAddress);
-
-    expect(
-      wethBalanceUserOne, 'User WETH balance is lower than 10 WETH'
-    ).to.be.greaterThan(parseEther('10'));
 
     await wethToken.connect(userOne).approve(sushiClone.address, MAX_UINT256);
     const userOnePreviewShares: BigNumber = await sushiClone.previewDeposit(wethBalanceUserOne);
@@ -85,26 +79,18 @@ describe('SushiVault', async () => {
   });
 
   it('user two invests in vault', async () => {
-    // Swapping some WETH
-    const WNATIVE: string = await sushiRouter.WETH();
-    const amountsOutQuote = await sushiRouter.getAmountsOut(parseEther('100'), [WNATIVE, WETH_ADDRESS]);
-    const minAmountOut: BigNumber = amountsOutQuote[amountsOutQuote.length - 1].mul(95).div(100);
-
-    await sushiRouter.connect(userTwo).swapExactETHForTokens(
-      minAmountOut,
-      [WNATIVE, WETH_ADDRESS],
-      userTwoAddress,
-      (await ethers.provider.getBlock('latest')).timestamp + 300,
-      {
-        value: parseEther('100000')
-      }
+    // Adding WETH balance to userTwo
+    const balanceSlotIndex: string = ethers.utils.solidityKeccak256(
+      ['uint256', 'uint256'],
+      [userTwoAddress, WETH_BALANCE_SLOT] // key, slot
     );
-
+    const expectedBalance: BigNumber = parseEther('10');
+    await setStorageAt(
+      WETH_ADDRESS,
+      balanceSlotIndex,
+      expectedBalance
+    );
     const wethBalanceUserTwo: BigNumber = await wethToken.balanceOf(userTwoAddress);
-
-    expect(
-      wethBalanceUserTwo, 'User WETH balance is lower than 10 WETH'
-    ).to.be.greaterThan(parseEther('10'));
 
     await wethToken.connect(userTwo).approve(sushiClone.address, MAX_UINT256);
     const userTwoPreviewShares: BigNumber = await sushiClone.previewDeposit(wethBalanceUserTwo);
@@ -117,7 +103,7 @@ describe('SushiVault', async () => {
   });
 
   it('user one withdraws from vault after blocks minted', async () => {
-    const blocks = 100;
+    blocks = 15_770_000; // About a year goes by
     await mine(blocks);
     const userOneShares: BigNumber = await sushiClone.balanceOf(userOneAddress);
     const userOnePreviewWithdraw: BigNumber = await sushiClone.previewRedeem(userOneShares);
