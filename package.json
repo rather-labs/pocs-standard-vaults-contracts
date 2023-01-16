@@ -16,6 +16,7 @@
     "hardhat:deploy": "npx hardhat run scripts/deploy.ts --network hardhat",
     "testnet:deploy": "npx hardhat run scripts/deploy.ts --network testnet",
     "testnet:deploy-verify": "npx hardhat run scripts/deploy-verify.ts --network testnet",
+    "mainnet:deploy-verify": "npx hardhat run scripts/deploy-verify.ts --network mainnet",
     "hardhat:node": "npx hardhat node --network hardhat"
   },
   "repository": {
