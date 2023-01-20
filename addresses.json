@@ -1,0 +1,9 @@
+{
+  "SushiStakingLogic": "0x47727894a06C009ca106dCE208F9889BB8d45593",
+  "SushiStakingVaultImplementation": "0x53dDc20060329dA7AF3EA721938f379165947336",
+  "SushiStakingVaultFactory": "0xd13F69353A410420c0aD7B74507fD88DA35927D2",
+  "CompoundLendingVaultImplementation": "0xa7501f2847797C8942A5c8972b6E7D13f4Ad475F",
+  "CompoundLendingVaultFactory": "0x3cAE80e6Ba30C4B5B2F5D5213078AD1516651dE6",
+  "DeltaNeutralVaultImplementation": "0xe303A2d4255946f2e58f0fbb789Dd2FB44334e4C",
+  "DeltaNeutralVaultFactory": "0x8E3Ae5Cb3E0F20b469f6ff34707Ccb76dcF172Db"
+}

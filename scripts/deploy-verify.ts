@@ -1,4 +1,6 @@
+import fs from 'fs';
 import { ethers } from 'hardhat';
+import { parseUnits } from 'ethers/lib/utils';
 import { CompoundLendingVaultFactory__factory } from '../typechain-types/factories/contracts/layer-1-vaults/lending/compound/CompoundLendingVaultFactory__factory';
 
 import { deployWithVerify } from './helpers/utils';
@@ -22,7 +24,9 @@ async function main() {
   // Deploying SushiStakingVault and Factory contracts
   const sushiLogicContractFilePath = 'contracts/layer-1-vaults/staking/sushi/SushiStakingLogic.sol:SushiStakingLogic';
   const sushiLogic = await deployWithVerify(
-    new SushiStakingLogic__factory(deployer).deploy(),
+    new SushiStakingLogic__factory(deployer).deploy(
+      { gasPrice: parseUnits('60', 9) }
+    ),
     [],
     sushiLogicContractFilePath
   );
@@ -32,11 +36,13 @@ async function main() {
   };
 
   const sushiVaultContractFilePath = 'contracts/layer-1-vaults/staking/sushi/SushiStakingVault.sol:SushiStakingVault';
-  const sushiVaultImplementation = await deployWithVerify(
+  const sushiStakingVaultImplementation = await deployWithVerify(
     new SushiStakingVault__factory(
       libs,
       deployer
-    ).deploy(),
+    ).deploy(
+      { gasPrice: parseUnits('60', 9) }
+    ),
     [],
     sushiVaultContractFilePath
   );
@@ -46,32 +52,40 @@ async function main() {
     new SushiStakingVaultFactory__factory(
       deployer
     ).deploy(
-      sushiVaultImplementation.address,
+      sushiStakingVaultImplementation.address,
       ROUTER_ADDRESS,
-      MINICHEF_ADDRESS
+      MINICHEF_ADDRESS,
+      { gasPrice: parseUnits('60', 9) }
     ),
     [
-      sushiVaultImplementation.address,
+      sushiStakingVaultImplementation.address,
       ROUTER_ADDRESS,
       MINICHEF_ADDRESS
     ],
     sushiVaultFactoryContractFilePath
   );
 
-  console.log(`--- SushiStakingVault implementation deployed in address: ${sushiVaultImplementation.address}`);
+  console.log(`--- SushiStakingVault implementation deployed in address: ${sushiStakingVaultImplementation.address}`);
   console.log(`--- SushiStakingFactory deployed in address: ${sushiStakingVaultFactory.address}`);
 
   // Deploying CompoundLendingVault and Factory contracts
   const compoundVaultContractFilePath = 'contracts/layer-1-vaults/lending/compound/CompoundLendingVault.sol:CompoundLendingVault';
   const compoundLendingVaultImplementation = await deployWithVerify(
-    new CompoundLendingVault__factory(deployer).deploy(),
+    new CompoundLendingVault__factory(deployer).deploy(
+      { gasPrice: parseUnits('60', 9) }
+    ),
     [],
     compoundVaultContractFilePath
   );
 
   const compoundVaultFactoryContractFilePath = 'contracts/layer-1-vaults/lending/compound/CompoundLendingVaultFactory.sol:CompoundLendingVaultFactory';
   const compoundLendingVaultFactory = await deployWithVerify(
-    new CompoundLendingVaultFactory__factory(deployer).deploy(compoundLendingVaultImplementation.address, COMPTROLLER_ADDRESS, CWETH_ADDRESS),
+    new CompoundLendingVaultFactory__factory(deployer).deploy(
+      compoundLendingVaultImplementation.address,
+      COMPTROLLER_ADDRESS,
+      CWETH_ADDRESS,
+      { gasPrice: parseUnits('60', 9) }
+    ),
     [compoundLendingVaultImplementation.address, COMPTROLLER_ADDRESS, CWETH_ADDRESS],
     compoundVaultFactoryContractFilePath
   );
@@ -82,20 +96,39 @@ async function main() {
   // Deploying DeltaNeutralVault and Factory contracts
   const deltaNeutralVaultContractFilePath = 'contracts/layer-2-vaults/delta-neutral/DeltaNeutralVault.sol:DeltaNeutralVault';
   const deltaNeutralVaultImplementation = await deployWithVerify(
-    new DeltaNeutralVault__factory(deployer).deploy(),
+    new DeltaNeutralVault__factory(deployer).deploy(
+      { gasPrice: parseUnits('60', 9) }
+    ),
     [],
     deltaNeutralVaultContractFilePath
   );
 
   const deltaNeutralVaultFactoryContractFilePath = 'contracts/layer-2-vaults/delta-neutral/DeltaNeutralVaultFactory.sol:DeltaNeutralVaultFactory';
-  const deltaNeutralVaultFactoryImplementation = await deployWithVerify(
-    new DeltaNeutralVaultFactory__factory(deployer).deploy(deltaNeutralVaultImplementation.address),
-    [],
+  const deltaNeutralVaultFactory = await deployWithVerify(
+    new DeltaNeutralVaultFactory__factory(deployer).deploy(
+      deltaNeutralVaultImplementation.address,
+      { gasPrice: parseUnits('60', 9) }
+    ),
+    [deltaNeutralVaultImplementation.address],
     deltaNeutralVaultFactoryContractFilePath
   );
 
   console.log(`--- DeltaNeutralVault implementation deployed in address: ${deltaNeutralVaultImplementation.address}`);
-  console.log(`--- DeltaNeutralVault factory deployed in address: ${deltaNeutralVaultFactoryImplementation.address}`);
+  console.log(`--- DeltaNeutralVault factory deployed in address: ${deltaNeutralVaultFactory.address}`);
+
+  // Save addresses of all contracts
+  const addrs = {
+    'SushiStakingLogic': sushiLogic.address,
+    'SushiStakingVaultImplementation': sushiStakingVaultImplementation.address,
+    'SushiStakingVaultFactory': sushiStakingVaultFactory.address,
+    'CompoundLendingVaultImplementation': compoundLendingVaultImplementation.address,
+    'CompoundLendingVaultFactory': compoundLendingVaultFactory.address,
+    'DeltaNeutralVaultImplementation': deltaNeutralVaultImplementation.address,
+    'DeltaNeutralVaultFactory': deltaNeutralVaultFactory.address
+  };
+
+  const json = JSON.stringify(addrs, null, 2);
+  fs.writeFileSync('addresses.json', json, 'utf-8');
 
 }
 

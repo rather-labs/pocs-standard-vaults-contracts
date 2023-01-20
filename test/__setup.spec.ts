@@ -2,7 +2,7 @@ import { AbiCoder } from '@ethersproject/abi';
 import '@nomiclabs/hardhat-ethers';
 import { Signer } from 'ethers';
 import { ethers } from 'hardhat';
-import { revertToSnapshot, takeSnapshot } from './helpers/utils';
+import { revertToSnapshot, takeSnapshot } from '../helpers/utils';
 import { CompoundLendingVault } from '../typechain-types/contracts/layer-1-vaults/lending/compound/CompoundLendingVault';
 import { CompoundLendingVaultFactory } from '../typechain-types/contracts/layer-1-vaults/lending/compound/CompoundLendingVaultFactory';
 import {

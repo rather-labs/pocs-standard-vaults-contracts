@@ -12,7 +12,7 @@
     "./scripts",
     "./test",
     "../typechain-types"
-  ],
+, "helpers/constants.ts", "helpers/utils.ts"  ],
   "files": [
     "./hardhat.config.ts"
   ]
