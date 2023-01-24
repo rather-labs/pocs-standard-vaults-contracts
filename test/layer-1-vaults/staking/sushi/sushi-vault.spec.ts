@@ -9,7 +9,7 @@ import {
   matchEvent,
   waitForTx,
   setStorageAt
-} from '../../../helpers/utils';
+} from '../../../../helpers/utils';
 import {
   sushiVaultFactory,
   abiCoder,
@@ -26,7 +26,7 @@ import {
 } from '../../../__setup.spec';
 import { SushiStakingVault } from '../../../../typechain-types';
 import SUSHI_VAULT_ABI from '../../../../artifacts/contracts/layer-1-vaults/staking/sushi/SushiStakingVault.sol/SushiStakingVault.json';
-import { MAX_UINT256 } from '../../../helpers/constants';
+import { MAX_UINT256 } from '../../../../helpers/constants';
 import { parseEther } from 'ethers/lib/utils';
 import { BigNumber } from 'ethers';
 

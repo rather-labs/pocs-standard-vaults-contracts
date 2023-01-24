@@ -4,15 +4,11 @@ const FormatTypes = ethers.utils.FormatTypes;
 import fs from 'fs';
 
 import {
-  SushiStakingVault,
   SushiStakingVault__factory,
-  SushiStakingVaultFactory,
   SushiStakingVaultFactory__factory,
   SushiStakingLogic__factory,
-  SushiStakingLogic,
 } from '../typechain-types';
-import { deployContract, waitForTx } from './helpers/utils';
-import { ZERO_ADDRESS } from '../test/helpers/constants';
+import { deployContract } from './helpers/utils';
 
 import { CompoundLendingVaultFactory__factory } from '../typechain-types/factories/contracts/layer-1-vaults/lending/compound/CompoundLendingVaultFactory__factory';
 import { CompoundLendingVault__factory } from '../typechain-types/factories/contracts/layer-1-vaults/lending/compound/CompoundLendingVault__factory';
