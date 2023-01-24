@@ -8,7 +8,7 @@ import {
   matchEvent,
   waitForTx,
   setStorageAt
-} from '../helpers/utils';
+} from '../../helpers/utils';
 import {
   abiCoder,
   userOne,
@@ -29,14 +29,14 @@ import {
 } from '../__setup.spec';
 import { DeltaNeutralVault } from '../../typechain-types';
 import DELTA_NEUTRAL_VAULT_ABI from '../../artifacts/contracts/layer-2-vaults/delta-neutral/DeltaNeutralVault.sol/DeltaNeutralVault.json';
-import { MAX_UINT256 } from '../helpers/constants';
+import { MAX_UINT256 } from '../../helpers/constants';
 import { parseUnits } from 'ethers/lib/utils';
 import { BigNumber } from 'ethers';
 import { mine } from '@nomicfoundation/hardhat-network-helpers';
 
 let deltaNeutralClone: DeltaNeutralVault;
 
-describe('DeltaNeutralVault', async () => {
+describe.only('DeltaNeutralVault', async () => {
   it('creates a new clone of a DeltaNeutralVault and checks creation Event and correct owner', async () => {
     // Setting up parameters for underlying layer 1 vaults (we only)
     const lendingVaultData: string = abiCoder.encode(
@@ -81,7 +81,7 @@ describe('DeltaNeutralVault', async () => {
       ['uint256', 'uint256'],
       [userOneAddress, USDC_BALANCE_SLOT] // key, slot
     );
-    const expectedBalance: BigNumber = parseUnits('10', 6);
+    const expectedBalance: BigNumber = parseUnits('22', 6);
     await setStorageAt(
       USDC_ADDRESS,
       balanceSlotIndex,

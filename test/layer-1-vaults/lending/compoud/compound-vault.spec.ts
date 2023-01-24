@@ -7,8 +7,8 @@ import {
   matchEvent,
   setStorageAt,
   waitForTx,
-} from '../../../helpers/utils';
-import { MAX_UINT256 } from '../../../helpers/constants';
+} from '../../../../helpers/utils';
+import { MAX_UINT256 } from '../../../../helpers/constants';
 
 import {
   compoundLendingVaultFactory,
